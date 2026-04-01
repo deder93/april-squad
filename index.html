@@ -225,7 +225,7 @@ input,textarea,select{font-family:inherit}
 .type-rank .type-count{color:var(--text2);font-size:.78rem}
 
 /* Chat */
-.chat-container{display:flex;flex-direction:column;height:calc(100vh - 220px);max-width:600px;margin:0 auto}
+.chat-container{display:flex;flex-direction:column;height:calc(100vh - 220px);height:calc(100dvh - 220px);max-width:600px;margin:0 auto}
 .chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px}
 .chat-msg{background:var(--surface);border-radius:10px;padding:10px 14px;position:relative}
 .chat-msg-header{display:flex;align-items:center;gap:8px;margin-bottom:4px}
@@ -282,7 +282,7 @@ input,textarea,select{font-family:inherit}
 </div>
 
 <!-- Pot Banner -->
-<div class="pot-banner">
+<div class="pot-banner" id="pot-banner">
   <div class="pot-amount" id="pot-amount">The Pot: $0</div>
   <div class="pot-sub" id="pot-sub">0 paid skips so far</div>
   <div class="pot-actions">
@@ -549,14 +549,15 @@ function workoutCardHtml(w,ctx){
   let h=`<div class="workout-card" id="wc-${w.id}"><div class="wc-header"><div class="wc-user">${avH(u,32)}<span class="wc-user-name">${nameH}</span></div><div style="display:flex;align-items:center;gap:4px">${w.is_two_a_day?'<span class="badge badge-2x">2x</span>':''}${isO?`<button class="btn-icon" onclick="startEdit('${w.id}')" title="Edit">&#9998;</button><button class="btn-icon" onclick="deleteWorkout('${w.id}')" title="Delete" style="color:var(--danger)">&#128465;</button>`:''}</div></div>`;
   if(w.workout_type)h+=`<div style="margin-bottom:6px"><span class="badge-type">${wtLabel(w.workout_type)}</span></div>`;
   if(w.description)h+=`<div class="wc-desc">${esc(w.description)}</div>`;
-  h+=`<div class="wc-meta">${w.duration_minutes?`<span class="badge badge-duration">${w.duration_minutes} min</span>`:''}${w.calories_burned?`<span class="badge badge-cal">${w.calories_burned} cal</span>`:''}`;
-  h+=`<span class="badge badge-comment" onclick="toggleComments('${w.id}')">&#128172; ${wMsgs.length}</span></div>`;
-  if(w.photo_url)h+=`<img class="wc-photo" src="${w.photo_url}" onclick="openLightbox('${w.photo_url}')" alt="Workout photo">`;
+  h+=`<div class="wc-meta">${w.duration_minutes?`<span class="badge badge-duration">${w.duration_minutes} min</span>`:''}${w.calories_burned?`<span class="badge badge-cal">${w.calories_burned} cal</span>`:''}</div>`;
+  if(w.photo_url)h+=`<div style="position:relative"><img class="wc-photo" id="wp-${w.id}" src="${w.photo_url}" onclick="openLightbox('${w.photo_url}')" alt="Workout photo"><button onclick="togglePhoto('${w.id}')" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.6);border:none;color:#fff;border-radius:6px;padding:2px 8px;font-size:.75rem;cursor:pointer;min-height:28px">Hide</button></div>`;
   h+=renderWReactions(w.id);
+  h+=`<div style="display:flex;align-items:center;gap:6px;margin-top:6px"><span class="badge badge-comment" onclick="toggleComments('${w.id}')">&#128172; ${wMsgs.length}</span><span class="reaction-add" onclick="showWEP(event,'${w.id}')" style="font-size:.85rem">+ Emoji</span></div>`;
   h+=`<div id="edit-area-${w.id}"></div><div class="comments-area" id="comments-${w.id}" style="display:none">${renderComments(w.id)}</div></div>`;
   return h;
 }
 function toggleComments(wid){const el=document.getElementById(`comments-${wid}`);if(el)el.style.display=el.style.display==='none'?'block':'none'}
+function togglePhoto(wid){const img=document.getElementById(`wp-${wid}`);if(!img)return;const btn=img.parentElement.querySelector('button');if(img.style.display==='none'){img.style.display='';btn.textContent='Hide'}else{img.style.display='none';btn.textContent='Show Photo'}}
 function renderWReactions(wid){
   const s=getS(),wr=allWReactions.filter(r=>r.workout_id===wid),g={};
   wr.forEach(r=>{if(!g[r.emoji])g[r.emoji]=[];g[r.emoji].push(r)});
@@ -684,12 +685,12 @@ async function refreshAll(){await loadAll();updatePot();renderTopbar();renderAct
 // Init
 async function init(){
   await loadAll();updatePot();renderTopbar();const s=getS();
-  if(s){document.getElementById('auth-area').innerHTML='';document.getElementById('admin-area').innerHTML='';document.getElementById('tab-bar').style.display='flex';
+  if(s){document.getElementById('auth-area').innerHTML='';document.getElementById('admin-area').innerHTML='';document.getElementById('tab-bar').style.display='flex';document.getElementById('pot-banner').style.display='';
     const hash=location.hash.replace('#','');if(['daily','calendar','scoreboard','chat'].includes(hash))activeTab=hash;
     document.querySelectorAll('.tab-content').forEach(c=>c.classList.toggle('active',c.id===`tab-${activeTab}`));
     document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.toggle('active',b.dataset.tab===activeTab));
     renderActiveTab()}
-  else{document.getElementById('tab-bar').style.display='none';document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));renderAuth()}}
+  else{document.getElementById('tab-bar').style.display='none';document.getElementById('pot-banner').style.display='none';document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));renderAuth()}}
 window.addEventListener('hashchange',()=>{const h=location.hash.replace('#','');if(['daily','calendar','scoreboard','chat'].includes(h)&&h!==activeTab)switchTab(h)});
 init();
 </script>
