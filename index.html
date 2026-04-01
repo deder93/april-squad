@@ -353,14 +353,15 @@ function nameChat(u){if(!u)return'?';return`@${esc(u.username)}`}
 function nameTopbar(u){return esc(u.display_name||u.username)}
 
 // State
-let allUsers=[],allWorkouts=[],allSkips=[],allMessages=[],allReactions=[],allWReactions=[];
+const HIDDEN_USERS=['test'];
+let allUsersRaw=[],allUsers=[],allWorkouts=[],allSkips=[],allMessages=[],allReactions=[],allWReactions=[];
 let currentDay=todayStr(),activeTab='daily',calFilter='all',sbSort='workouts';
 const scrollPos={};
 const REMOJIS=['\ud83d\udd25','\ud83d\udcaa','\ud83d\ude02','\ud83d\udc4f','\ud83d\udc80','\ud83d\ude24','\ud83e\udee1','\u2764\ufe0f'];
 
 async function loadAll(){
   const[u,w,sk,m,r,wr]=await Promise.all([sb('users?select=id,username,display_name,avatar_url,created_at&order=created_at.asc'),sb('workouts?select=*&order=created_at.asc'),sb('skips?select=*&order=created_at.asc'),sb('chat_messages?select=*&order=created_at.asc'),sb('chat_reactions?select=*'),sb('workout_reactions?select=*')]);
-  allUsers=u||[];allWorkouts=w||[];allSkips=sk||[];allMessages=m||[];allReactions=r||[];allWReactions=wr||[];
+  allUsersRaw=u||[];allUsers=allUsersRaw.filter(x=>!HIDDEN_USERS.includes(x.username));allWorkouts=w||[];allSkips=sk||[];allMessages=m||[];allReactions=r||[];allWReactions=wr||[];
   cMap={};allUsers.forEach(x=>uC(x.id));
 }
 
@@ -407,7 +408,7 @@ async function doLogin(){const err=document.getElementById('auth-error'),u=docum
 async function doSignup(){const err=document.getElementById('auth-error'),dn=document.getElementById('auth-display').value.trim(),u=document.getElementById('auth-user').value.trim().toLowerCase(),p=document.getElementById('auth-pin').value.trim(),avIn=document.getElementById('auth-avatar');if(!dn){err.textContent='Display Name is required';return}if(!u){err.textContent='Username is required';return}if(p.length!==4||!/^\d{4}$/.test(p)){err.textContent='PIN must be 4 digits';return}try{const h=await hashPin(p);const rows=await sb('users',{method:'POST',body:JSON.stringify({username:u,display_name:dn,pin_hash:h})});const user=rows[0];let avUrl=null;if(avIn.files.length>0){const file=avIn.files[0],ext=file.name.split('.').pop()||'jpg',path=`${user.id}/avatar.${ext}`;const up=await fetch(`${SB_URL}/storage/v1/object/avatars/${path}`,{method:'POST',headers:{'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`,'Content-Type':file.type,'x-upsert':'true'},body:file});if(up.ok){avUrl=`${SB_URL}/storage/v1/object/public/avatars/${path}`;await sb(`users?id=eq.${user.id}`,{method:'PATCH',body:JSON.stringify({avatar_url:avUrl})})}}setS(user.id,user.username,user.display_name,avUrl);await init()}catch(e){if(e.message.includes('duplicate')||e.message.includes('unique'))err.textContent='Username already taken';else err.textContent=e.message}}
 function logout(){clearS();init()}
 function toggleProfileMenu(e){e.stopPropagation();const m=document.getElementById('profile-menu');m.classList.toggle('open');const cl=()=>{m.classList.remove('open');document.removeEventListener('click',cl)};if(m.classList.contains('open'))setTimeout(()=>document.addEventListener('click',cl),0)}
-function openMyStats(){document.getElementById('profile-menu').classList.remove('open');const s=getS();if(!s)return;const today=todayStr();const u=allUsers.find(x=>x.id===s.user_id);const ws=allWorkouts.filter(w=>w.user_id===s.user_id);const sks=allSkips.filter(x=>x.user_id===s.user_id);const tad=ws.filter(w=>w.is_two_a_day).length;const totalCal=ws.reduce((a,w)=>a+(w.calories_burned||0),0);const totalMin=ws.reduce((a,w)=>a+(w.duration_minutes||0),0);const fU=sks.filter(x=>x.is_free&&!x.erased).length;const pd=sks.filter(x=>!x.is_free&&!x.erased).length;
+function openMyStats(){document.getElementById('profile-menu').classList.remove('open');const s=getS();if(!s)return;const today=todayStr();const u=allUsersRaw.find(x=>x.id===s.user_id)||s;const ws=allWorkouts.filter(w=>w.user_id===s.user_id);const sks=allSkips.filter(x=>x.user_id===s.user_id);const tad=ws.filter(w=>w.is_two_a_day).length;const totalCal=ws.reduce((a,w)=>a+(w.calories_burned||0),0);const totalMin=ws.reduce((a,w)=>a+(w.duration_minutes||0),0);const fU=sks.filter(x=>x.is_free&&!x.erased).length;const pd=sks.filter(x=>!x.is_free&&!x.erased).length;
   let streak=0;let cd=new Date(today+'T00:00:00');if(!ws.some(w=>w.workout_date===today))cd.setDate(cd.getDate()-1);while(cd>=new Date('2026-04-01T00:00:00')){if(ws.some(w=>w.workout_date===fmtD(cd))){streak++;cd.setDate(cd.getDate()-1)}else break}
   const tc={};ws.forEach(w=>{if(w.workout_type){tc[w.workout_type]=(tc[w.workout_type]||0)+1}});const tr=Object.entries(tc).sort((a,b)=>b[1]-a[1]);
   let h=`<div style="padding:20px"><h3 style="margin-bottom:14px">${avH(u,32)} ${esc(u.display_name)}'s Stats</h3><div class="ts-grid">
