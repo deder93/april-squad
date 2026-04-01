@@ -445,12 +445,13 @@ function activityNav(tab,date){document.getElementById('activity-panel').classLi
 function workoutFormHtml(prefix,defaultDate){
   const s=getS();if(!s)return'';
   const today=todayStr();const maxDate=today<'2026-04-30'?today:'2026-04-30';
-  return`<div class="form-group"><label>Date</label><input type="date" id="${prefix}-wo-date" value="${defaultDate}" min="2026-04-01" max="${maxDate}"></div>
-<div class="form-group"><label>Workout Type *</label><select id="${prefix}-wo-type" onchange="checkOtherType('${prefix}')"><option value="">Select type...</option>${WT_OPTS.map(t=>`<option value="${t}">${WT_EMOJI[t]||''} ${t}</option>`).join('')}</select></div>
+  return`<div style="font-size:.75rem;color:var(--text2);margin-bottom:8px">* Required</div>
+<div class="form-group"><label>Date <span style="color:var(--danger)">*</span></label><input type="date" id="${prefix}-wo-date" value="${defaultDate}" min="2026-04-01" max="${maxDate}"></div>
+<div class="form-group"><label>Workout Type <span style="color:var(--danger)">*</span></label><select id="${prefix}-wo-type" onchange="checkOtherType('${prefix}')"><option value="">Select type...</option>${WT_OPTS.map(t=>`<option value="${t}">${WT_EMOJI[t]||''} ${t}</option>`).join('')}</select></div>
 <div class="form-group" id="${prefix}-other-wrap" style="display:none"><label>Custom type</label><input id="${prefix}-wo-other" placeholder="e.g., Boxing"></div>
-<div class="form-group"><label>Description (optional)</label><textarea id="${prefix}-wo-desc" placeholder="e.g., 5 mile run + core"></textarea></div>
-<div class="form-group"><label>Duration (minutes)</label><input type="number" id="${prefix}-wo-dur" placeholder="45" inputmode="numeric"></div>
-<div class="form-group"><label>Calories burned</label><input type="number" id="${prefix}-wo-cal" placeholder="320" inputmode="numeric"></div>
+<div class="form-group"><label>Description <span style="color:var(--text2);font-size:.7rem">(optional)</span></label><textarea id="${prefix}-wo-desc" placeholder="e.g., 5 mile run + core"></textarea></div>
+<div class="form-group"><label>Duration \u2014 minutes <span style="color:var(--text2);font-size:.7rem">(optional)</span></label><input type="number" id="${prefix}-wo-dur" placeholder="45" inputmode="numeric"></div>
+<div class="form-group"><label>Calories burned <span style="color:var(--text2);font-size:.7rem">(optional)</span></label><input type="number" id="${prefix}-wo-cal" placeholder="320" inputmode="numeric"></div>
 <div class="form-group"><label>Photo proof <span class="label-hint">Recommended</span></label><input type="file" id="${prefix}-wo-photo" accept="image/*"></div>`}
 function checkOtherType(pre){const sel=document.getElementById(`${pre}-wo-type`);document.getElementById(`${pre}-other-wrap`).style.display=sel.value==='Other'?'block':'none'}
 
