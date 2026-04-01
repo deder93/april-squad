@@ -343,8 +343,8 @@ let cMap={};function uC(uid){if(!cMap[uid])cMap[uid]=COLORS[Object.keys(cMap).le
 function avH(u,sz){if(!u)return'';if(u.avatar_url)return`<img class="avatar" src="${u.avatar_url}" width="${sz}" height="${sz}" alt="">`;const i=(u.display_name||u.username||'?')[0].toUpperCase();return`<div class="avatar-placeholder" style="width:${sz}px;height:${sz}px;font-size:${Math.round(sz*.45)}px;background:${uC(u.id)}">${i}</div>`}
 
 // Workout type config
-const WT_OPTS=['Run','Lift','HIIT Class','Swim','Tennis','Golf','Walk','Bike Ride','Yoga','Pilates','CrossFit','Sports','Hike','Pickle/Padel','Rowing','Other'];
-const WT_EMOJI={Run:'\ud83c\udfc3',Lift:'\ud83c\udfcb\ufe0f','HIIT Class':'\ud83d\udd25',Swim:'\ud83c\udfca',Tennis:'\ud83c\udfbe',Golf:'\u26f3',Walk:'\ud83d\udeb6','Bike Ride':'\ud83d\udeb4',Yoga:'\ud83e\uddd8',Pilates:'\ud83e\udd38',CrossFit:'\ud83d\udcaa',Sports:'\u26bd',Hike:'\ud83e\uddb6','Pickle/Padel':'\ud83c\udfd3',Rowing:'\ud83d\udea3',Other:'\ud83c\udfc5'};
+const WT_OPTS=['Run','Lift','HIIT Class','Swim','Tennis','Golf','Walk','Bike Ride','Yoga/Pilates','CrossFit','Soccer','Basketball','Hike','Pickle/Padel','Rowing','Other'];
+const WT_EMOJI={Run:'\ud83c\udfc3',Lift:'\ud83c\udfcb\ufe0f','HIIT Class':'\ud83d\udd25',Swim:'\ud83c\udfca',Tennis:'\ud83c\udfbe',Golf:'\u26f3',Walk:'\ud83d\udeb6','Bike Ride':'\ud83d\udeb4','Yoga/Pilates':'\ud83e\uddd8',Yoga:'\ud83e\uddd8',Pilates:'\ud83e\udd38',CrossFit:'\ud83d\udcaa',Soccer:'\u26bd',Basketball:'\ud83c\udfc0',Sports:'\u26bd',Hike:'\ud83e\uddb6','Pickle/Padel':'\ud83c\udfd3',Rowing:'\ud83d\udea3',Other:'\ud83c\udfc5'};
 function wtLabel(t){if(!t)return'';const e=WT_EMOJI[t]||'\ud83c\udfc5';return`${e} ${t}`}
 
 // Name display helpers (Change 10)
