@@ -15,8 +15,13 @@ input,textarea,select{font-family:inherit}
 .topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border)}
 .app-title{font-size:22px;font-weight:900;background:linear-gradient(135deg,#c0c0c0,#e8e8e8,#f59e0b,#ffd700);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;white-space:nowrap;text-transform:capitalize}
 .topbar-right{display:flex;align-items:center;gap:8px}
-.topbar-user{display:flex;align-items:center;gap:6px}
+.topbar-user{display:flex;align-items:center;gap:6px;cursor:pointer;position:relative}
 .topbar-user span{color:var(--accent);font-weight:600;font-size:.85rem}
+.profile-menu{display:none;position:absolute;top:42px;right:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;z-index:250;box-shadow:0 8px 32px rgba(0,0,0,.4);min-width:160px}
+.profile-menu.open{display:block}
+.profile-menu button{width:100%;padding:12px 16px;border:none;background:none;color:var(--text);font-size:.85rem;text-align:left;cursor:pointer;min-height:44px;display:flex;align-items:center;gap:8px}
+.profile-menu button:hover{background:var(--surface2)}
+.profile-menu button.danger{color:var(--danger)}
 
 /* Buttons */
 .btn{padding:10px 18px;border:none;border-radius:8px;font-size:.85rem;font-weight:600;transition:all .15s;min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
@@ -349,7 +354,7 @@ function nameTopbar(u){return esc(u.display_name||u.username)}
 
 // State
 let allUsers=[],allWorkouts=[],allSkips=[],allMessages=[],allReactions=[];
-let currentDay=todayStr(),activeTab='daily',calFilter='all';
+let currentDay=todayStr(),activeTab='daily',calFilter='all',sbSort='workouts';
 const scrollPos={};
 const REMOJIS=['\ud83d\udd25','\ud83d\udcaa','\ud83d\ude02','\ud83d\udc4f','\ud83d\udc80','\ud83d\ude24','\ud83e\udee1','\u2764\ufe0f'];
 
@@ -374,7 +379,7 @@ function renderActiveTab(){if(activeTab==='daily')renderDaily();else if(activeTa
 function renderTopbar(){
   const el=document.getElementById('topbar-right'),s=getS();
   if(s){const u=allUsers.find(x=>x.id===s.user_id)||s;
-    el.innerHTML=`<div class="topbar-user">${avH(u,28)}<span>${nameTopbar(u)}</span></div><div style="position:relative"><button class="activity-btn" onclick="toggleActivity(event)">&#128276;<span class="activity-dot" id="activity-dot"></span></button><div class="activity-panel" id="activity-panel"></div></div><button class="btn btn-outline btn-sm" onclick="logout()">Log Out</button>`;
+    el.innerHTML=`<div style="position:relative"><button class="activity-btn" onclick="toggleActivity(event)">&#128276;<span class="activity-dot" id="activity-dot"></span></button><div class="activity-panel" id="activity-panel"></div></div><div class="topbar-user" onclick="toggleProfileMenu(event)">${avH(u,28)}<span>${nameTopbar(u)}</span><div class="profile-menu" id="profile-menu"><button onclick="openMyStats()">&#128202; My Stats</button><button class="danger" onclick="logout()">&#128682; Log Out</button></div></div>`;
     document.getElementById('global-log-btn').style.display='';
     checkActivityDot();
   }else{el.innerHTML='';document.getElementById('global-log-btn').style.display='none'}
@@ -401,6 +406,22 @@ function authTab(tab){
 async function doLogin(){const err=document.getElementById('auth-error'),u=document.getElementById('auth-user').value.trim().toLowerCase(),p=document.getElementById('auth-pin').value.trim();if(!u||p.length!==4){err.textContent='Enter username and 4-digit PIN';return}try{const rows=await sb(`users?username=eq.${encodeURIComponent(u)}&select=id,username,display_name,avatar_url,pin_hash`);if(!rows||!rows.length){err.textContent='User not found';return}const user=rows[0],h=await hashPin(p);if(h!==user.pin_hash){err.textContent='Wrong PIN';return}setS(user.id,user.username,user.display_name,user.avatar_url);await init()}catch(e){err.textContent=e.message}}
 async function doSignup(){const err=document.getElementById('auth-error'),dn=document.getElementById('auth-display').value.trim(),u=document.getElementById('auth-user').value.trim().toLowerCase(),p=document.getElementById('auth-pin').value.trim(),avIn=document.getElementById('auth-avatar');if(!dn){err.textContent='Display Name is required';return}if(!u){err.textContent='Username is required';return}if(p.length!==4||!/^\d{4}$/.test(p)){err.textContent='PIN must be 4 digits';return}try{const h=await hashPin(p);const rows=await sb('users',{method:'POST',body:JSON.stringify({username:u,display_name:dn,pin_hash:h})});const user=rows[0];let avUrl=null;if(avIn.files.length>0){const file=avIn.files[0],ext=file.name.split('.').pop()||'jpg',path=`${user.id}/avatar.${ext}`;const up=await fetch(`${SB_URL}/storage/v1/object/avatars/${path}`,{method:'POST',headers:{'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`,'Content-Type':file.type,'x-upsert':'true'},body:file});if(up.ok){avUrl=`${SB_URL}/storage/v1/object/public/avatars/${path}`;await sb(`users?id=eq.${user.id}`,{method:'PATCH',body:JSON.stringify({avatar_url:avUrl})})}}setS(user.id,user.username,user.display_name,avUrl);await init()}catch(e){if(e.message.includes('duplicate')||e.message.includes('unique'))err.textContent='Username already taken';else err.textContent=e.message}}
 function logout(){clearS();init()}
+function toggleProfileMenu(e){e.stopPropagation();const m=document.getElementById('profile-menu');m.classList.toggle('open');const cl=()=>{m.classList.remove('open');document.removeEventListener('click',cl)};if(m.classList.contains('open'))setTimeout(()=>document.addEventListener('click',cl),0)}
+function openMyStats(){document.getElementById('profile-menu').classList.remove('open');const s=getS();if(!s)return;const today=todayStr();const u=allUsers.find(x=>x.id===s.user_id);const ws=allWorkouts.filter(w=>w.user_id===s.user_id);const sks=allSkips.filter(x=>x.user_id===s.user_id);const tad=ws.filter(w=>w.is_two_a_day).length;const totalCal=ws.reduce((a,w)=>a+(w.calories_burned||0),0);const totalMin=ws.reduce((a,w)=>a+(w.duration_minutes||0),0);const fU=sks.filter(x=>x.is_free&&!x.erased).length;const pd=sks.filter(x=>!x.is_free&&!x.erased).length;
+  let streak=0;let cd=new Date(today+'T00:00:00');if(!ws.some(w=>w.workout_date===today))cd.setDate(cd.getDate()-1);while(cd>=new Date('2026-04-01T00:00:00')){if(ws.some(w=>w.workout_date===fmtD(cd))){streak++;cd.setDate(cd.getDate()-1)}else break}
+  const tc={};ws.forEach(w=>{if(w.workout_type){tc[w.workout_type]=(tc[w.workout_type]||0)+1}});const tr=Object.entries(tc).sort((a,b)=>b[1]-a[1]);
+  let h=`<div style="padding:20px"><h3 style="margin-bottom:14px">${avH(u,32)} ${esc(u.display_name)}'s Stats</h3><div class="ts-grid">
+    <div class="ts-card"><div class="ts-value">${ws.length}</div><div class="ts-label">Workouts</div></div>
+    <div class="ts-card"><div class="ts-value">${streak}</div><div class="ts-label">Day Streak</div></div>
+    <div class="ts-card"><div class="ts-value">${totalMin||'\u2014'}</div><div class="ts-label">Minutes</div></div>
+    <div class="ts-card"><div class="ts-value">${totalCal||'\u2014'}</div><div class="ts-label">Calories</div></div>
+    <div class="ts-card"><div class="ts-value">${tad}</div><div class="ts-label">Two-a-Days</div></div>
+    <div class="ts-card"><div class="ts-value">${4-fU}/4</div><div class="ts-label">Free Skips Left</div></div>
+    <div class="ts-card"><div class="ts-value">${pd}</div><div class="ts-label">Paid Skips</div></div>
+    <div class="ts-card"><div class="ts-value">$${pd*20}</div><div class="ts-label">Owed</div></div>`;
+  if(tr.length){h+=`<div class="ts-card full"><div class="ts-label" style="margin-bottom:8px;font-size:.85rem;font-weight:600;color:var(--text)">My Workout Types</div>`;tr.forEach(([t,c])=>{h+=`<div class="type-rank"><span>${wtLabel(t)}</span><span class="type-count">${c}</span></div>`});h+=`</div>`}
+  h+=`</div></div>`;
+  document.getElementById('log-modal-body').innerHTML=h;document.getElementById('log-modal').querySelector('.modal-header h3').textContent='My Stats';document.getElementById('log-modal').classList.add('open')}
 function renderAdmin(){const area=document.getElementById('admin-area');if(new URLSearchParams(location.search).get('admin')==='true'&&allUsers.length){let h='<div class="admin-section"><h3>Admin: User List</h3>';allUsers.forEach(u=>{h+=`<div class="admin-user">${esc(u.display_name)} &mdash; @${esc(u.username)}</div>`});h+='</div>';area.innerHTML=h}else area.innerHTML=''}
 
 // Activity feed (Change 11)
@@ -599,8 +620,9 @@ function renderScoreboard(){
   const el=document.getElementById('tab-scoreboard'),today=todayStr();
   const stats=allUsers.map(u=>{const ws=allWorkouts.filter(w=>w.user_id===u.id),tad=ws.filter(w=>w.is_two_a_day).length,sks=allSkips.filter(s=>s.user_id===u.id),fU=sks.filter(s=>s.is_free&&!s.erased).length,pd=sks.filter(s=>!s.is_free&&!s.erased).length,er=sks.filter(s=>s.erased).length;
     let streak=0;let cd=new Date(today+'T00:00:00');if(!ws.some(w=>w.workout_date===today))cd.setDate(cd.getDate()-1);while(cd>=new Date('2026-04-01T00:00:00')){if(ws.some(w=>w.workout_date===fmtD(cd))){streak++;cd.setDate(cd.getDate()-1)}else break}
-    return{...u,wC:ws.length,tad,fU,pd,er,owed:pd*20,streak}}).sort((a,b)=>b.wC-a.wC);
-  let h=`<div class="tab-panel"><h2 style="font-size:1rem;color:var(--text2);margin-bottom:12px">Leaderboard</h2>`;
+    const totalCal=ws.reduce((a,w)=>a+(w.calories_burned||0),0);
+    return{...u,wC:ws.length,tad,fU,pd,er,owed:pd*20,streak,totalCal}}).sort((a,b)=>{if(sbSort==='streak')return b.streak-a.streak||b.wC-a.wC;if(sbSort==='calories')return b.totalCal-a.totalCal||b.wC-a.wC;return b.wC-a.wC});
+  let h=`<div class="tab-panel"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><h2 style="font-size:1rem;color:var(--text2)">Leaderboard</h2><select style="padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.8rem;min-height:40px" onchange="sbSort=this.value;renderScoreboard()"><option value="workouts"${sbSort==='workouts'?' selected':''}>By Workouts</option><option value="streak"${sbSort==='streak'?' selected':''}>By Streak</option><option value="calories"${sbSort==='calories'?' selected':''}>By Calories</option></select></div>`;
   stats.forEach((s,i)=>{const ld=i===0&&s.wC>0;
     h+=`<div class="sb-card${ld?' leader':''}"><div class="sb-rank">${ld?'\ud83c\udfc6':i+1}</div><div class="sb-info"><div class="sb-name-row">${avH(s,40)}<div class="sb-name" style="color:${uC(s.id)}">${nameDaily(s)}</div></div><div class="sb-stats"><span class="sb-stat">${s.wC} workout${s.wC!==1?'s':''}</span><span class="sb-stat">${s.tad} 2x</span><span class="sb-stat streak">${s.streak} day streak</span><span class="sb-stat">${4-s.fU}/4 free skips</span>${s.pd?`<span class="sb-stat owed">${s.pd} paid</span>`:''}<span class="sb-stat owed">Owes $${s.owed}</span>${s.er?`<span class="sb-stat">${s.er} erased</span>`:''}</div></div></div>`});
 
