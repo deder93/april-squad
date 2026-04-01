@@ -551,20 +551,19 @@ function workoutCardHtml(w,ctx){
   if(w.workout_type)h+=`<div style="margin-bottom:6px"><span class="badge-type">${wtLabel(w.workout_type)}</span></div>`;
   if(w.description)h+=`<div class="wc-desc">${esc(w.description)}</div>`;
   h+=`<div class="wc-meta">${w.duration_minutes?`<span class="badge badge-duration">${w.duration_minutes} min</span>`:''}${w.calories_burned?`<span class="badge badge-cal">${w.calories_burned} cal</span>`:''}</div>`;
-  if(w.photo_url)h+=`<div style="position:relative"><img class="wc-photo" id="wp-${w.id}" src="${w.photo_url}" onclick="openLightbox('${w.photo_url}')" alt="Workout photo"><button onclick="togglePhoto('${w.id}')" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.6);border:none;color:#fff;border-radius:6px;padding:2px 8px;font-size:.75rem;cursor:pointer;min-height:28px">Hide</button></div>`;
+  if(w.photo_url)h+=`<div><div id="wp-${w.id}"><img class="wc-photo" src="${w.photo_url}" onclick="openLightbox('${w.photo_url}')" alt="Workout photo"></div><button onclick="togglePhoto('${w.id}')" id="wpb-${w.id}" style="background:var(--surface2);border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:4px 12px;font-size:.75rem;cursor:pointer;min-height:28px;margin-top:4px">Hide Photo</button></div>`;
   h+=renderWReactions(w.id);
   h+=`<div style="display:flex;align-items:center;gap:6px;margin-top:6px"><span class="badge badge-comment" onclick="toggleComments('${w.id}')">&#128172; ${wMsgs.length}</span><span class="reaction-add" onclick="showWEP(event,'${w.id}')" style="font-size:.85rem">+ Emoji</span></div>`;
   h+=`<div id="edit-area-${w.id}"></div><div class="comments-area" id="comments-${w.id}" style="display:none">${renderComments(w.id)}</div></div>`;
   return h;
 }
 function toggleComments(wid){const el=document.getElementById(`comments-${wid}`);if(el)el.style.display=el.style.display==='none'?'block':'none'}
-function togglePhoto(wid){const img=document.getElementById(`wp-${wid}`);if(!img)return;const btn=img.parentElement.querySelector('button');if(img.style.display==='none'){img.style.display='';btn.textContent='Hide'}else{img.style.display='none';btn.textContent='Show Photo'}}
+function togglePhoto(wid){const wrap=document.getElementById(`wp-${wid}`);const btn=document.getElementById(`wpb-${wid}`);if(!wrap||!btn)return;if(wrap.style.display==='none'){wrap.style.display='';btn.textContent='Hide Photo'}else{wrap.style.display='none';btn.textContent='Show Photo'}}
 function renderWReactions(wid){
   const s=getS(),wr=allWReactions.filter(r=>r.workout_id===wid),g={};
   wr.forEach(r=>{if(!g[r.emoji])g[r.emoji]=[];g[r.emoji].push(r)});
   let h='<div class="reactions-bar">';
   Object.entries(g).forEach(([em,rs])=>{const mine=s&&rs.some(r=>r.user_id===s.user_id);h+=`<span class="reaction-chip${mine?' mine':''}" onclick="toggleWR('${wid}','${em}')">${em} ${rs.length}</span>`});
-  if(s)h+=`<span class="reaction-add" onclick="showWEP(event,'${wid}')">+</span>`;
   h+='</div>';return h;
 }
 let openWPid=null;
