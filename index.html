@@ -501,7 +501,14 @@ function renderDaily(){
   const wk=getMon(currentDay),wk2=allWorkouts.filter(w=>w.user_id===s.user_id&&w.is_two_a_day&&getMon(w.workout_date)===wk);
   const can2=hasR&&!has2&&wk2.length===0;
   const showLog=isEd&&!hasR&&!mySk,show2=isEd&&can2&&!mySk,showSkip=isEd&&!hasR&&!mySk;
+  const logIds=new Set([...dW.map(w=>w.user_id),...dSk.filter(x=>!x.erased).map(x=>x.user_id)]);
+  const miss=allUsers.filter(u=>!logIds.has(u.id));
+  const doneCount=logIds.size;const totalCount=allUsers.length;
   let h=`<div class="tab-panel"><div class="daily-header"><button class="daily-nav" onclick="navDay(-1)"${canP?'':' disabled'}>&larr;</button><h2>${dn[d.getDay()]}, ${mn[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}</h2><button class="daily-nav" onclick="navDay(1)"${canN?'':' disabled'}>&rarr;</button></div>`;
+  h+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px">`;
+  h+=`<div style="font-size:.85rem;font-weight:600;color:${doneCount===totalCount?'var(--accent)':'var(--text)'}">${doneCount} of ${totalCount} have logged workouts</div>`;
+  if(miss.length){h+=`<div style="margin-top:6px;font-size:.8rem;color:var(--text2)">Still waiting on: `;miss.forEach((u,i)=>{h+=`${i>0?', ':''}${esc(u.display_name)}`});h+=` <span class="waiting">...</span></div>`}
+  h+=`</div>`;
   if(showLog){
     h+=`<button class="btn btn-accent" style="width:100%" onclick="toggleLogForm()">Log Workout</button>`;
     h+=`<div class="collapsible" id="log-form-collapse"><div class="log-form" style="margin-top:8px">${workoutFormHtml('dl',currentDay)}<button class="btn btn-accent" onclick="submitDailyWorkout(false)">Submit Workout</button></div></div>`;
@@ -513,9 +520,6 @@ function renderDaily(){
   if(!dW.length&&!dSk.length)h+=`<p style="color:var(--text2);font-size:.85rem;margin:16px 0">No entries yet for this day.</p>`;
   dW.forEach(w=>{h+=workoutCardHtml(w,'daily')});
   dSk.forEach(sk=>{h+=skipCardHtml(sk)});
-  const logIds=new Set([...dW.map(w=>w.user_id),...dSk.filter(x=>!x.erased).map(x=>x.user_id)]);
-  const miss=allUsers.filter(u=>!logIds.has(u.id));
-  if(miss.length){h+=`<div class="missing-section"><h4>Still waiting on...</h4><div>`;miss.forEach(u=>{h+=`<span class="missing-user">${avH(u,20)} ${esc(u.display_name)} <span class="waiting">...</span></span>`});h+=`</div></div>`}
   h+=`</div>`;el.innerHTML=h;
 }
 function toggleLogForm(){const c=document.getElementById('log-form-collapse');if(c)c.classList.toggle('open')}
@@ -558,7 +562,8 @@ function workoutCardHtml(w,ctx){
   h+=`<div class="wc-meta">${w.duration_minutes?`<span class="badge badge-duration">${w.duration_minutes} min</span>`:''}${w.calories_burned?`<span class="badge badge-cal">${w.calories_burned} cal</span>`:''}</div>`;
   if(w.photo_url)h+=`<div><div id="wp-${w.id}"><img class="wc-photo" src="${w.photo_url}" onclick="openLightbox('${w.photo_url}')" alt="Workout photo"></div><button onclick="togglePhoto('${w.id}')" id="wpb-${w.id}" style="background:var(--surface2);border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:4px 12px;font-size:.75rem;cursor:pointer;min-height:28px;margin-top:4px">Hide Photo</button></div>`;
   h+=renderWReactions(w.id);
-  h+=`<div style="display:flex;align-items:center;gap:6px;margin-top:6px"><span class="badge badge-comment" onclick="toggleComments('${w.id}')">&#128172; ${wMsgs.length}</span><span class="reaction-add" onclick="showWEP(event,'${w.id}')" style="font-size:.85rem">+ Emoji</span></div>`;
+  const logTime=w.created_at?relT(w.created_at):'';
+  h+=`<div style="display:flex;align-items:center;gap:6px;margin-top:6px"><span class="badge badge-comment" onclick="toggleComments('${w.id}')">&#128172; ${wMsgs.length}</span><span class="reaction-add" onclick="showWEP(event,'${w.id}')" style="font-size:.85rem">+ Emoji</span><span style="margin-left:auto;font-size:.7rem;color:var(--text2)">Logged ${logTime}</span></div>`;
   h+=`<div id="edit-area-${w.id}"></div><div class="comments-area" id="comments-${w.id}" style="display:none">${renderComments(w.id)}</div></div>`;
   return h;
 }
