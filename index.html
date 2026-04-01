@@ -353,14 +353,14 @@ function nameChat(u){if(!u)return'?';return`@${esc(u.username)}`}
 function nameTopbar(u){return esc(u.display_name||u.username)}
 
 // State
-let allUsers=[],allWorkouts=[],allSkips=[],allMessages=[],allReactions=[];
+let allUsers=[],allWorkouts=[],allSkips=[],allMessages=[],allReactions=[],allWReactions=[];
 let currentDay=todayStr(),activeTab='daily',calFilter='all',sbSort='workouts';
 const scrollPos={};
 const REMOJIS=['\ud83d\udd25','\ud83d\udcaa','\ud83d\ude02','\ud83d\udc4f','\ud83d\udc80','\ud83d\ude24','\ud83e\udee1','\u2764\ufe0f'];
 
 async function loadAll(){
-  const[u,w,sk,m,r]=await Promise.all([sb('users?select=id,username,display_name,avatar_url,created_at&order=created_at.asc'),sb('workouts?select=*&order=created_at.asc'),sb('skips?select=*&order=created_at.asc'),sb('chat_messages?select=*&order=created_at.asc'),sb('chat_reactions?select=*')]);
-  allUsers=u||[];allWorkouts=w||[];allSkips=sk||[];allMessages=m||[];allReactions=r||[];
+  const[u,w,sk,m,r,wr]=await Promise.all([sb('users?select=id,username,display_name,avatar_url,created_at&order=created_at.asc'),sb('workouts?select=*&order=created_at.asc'),sb('skips?select=*&order=created_at.asc'),sb('chat_messages?select=*&order=created_at.asc'),sb('chat_reactions?select=*'),sb('workout_reactions?select=*')]);
+  allUsers=u||[];allWorkouts=w||[];allSkips=sk||[];allMessages=m||[];allReactions=r||[];allWReactions=wr||[];
   cMap={};allUsers.forEach(x=>uC(x.id));
 }
 
@@ -552,10 +552,22 @@ function workoutCardHtml(w,ctx){
   h+=`<div class="wc-meta">${w.duration_minutes?`<span class="badge badge-duration">${w.duration_minutes} min</span>`:''}${w.calories_burned?`<span class="badge badge-cal">${w.calories_burned} cal</span>`:''}`;
   h+=`<span class="badge badge-comment" onclick="toggleComments('${w.id}')">&#128172; ${wMsgs.length}</span></div>`;
   if(w.photo_url)h+=`<img class="wc-photo" src="${w.photo_url}" onclick="openLightbox('${w.photo_url}')" alt="Workout photo">`;
+  h+=renderWReactions(w.id);
   h+=`<div id="edit-area-${w.id}"></div><div class="comments-area" id="comments-${w.id}" style="display:none">${renderComments(w.id)}</div></div>`;
   return h;
 }
 function toggleComments(wid){const el=document.getElementById(`comments-${wid}`);if(el)el.style.display=el.style.display==='none'?'block':'none'}
+function renderWReactions(wid){
+  const s=getS(),wr=allWReactions.filter(r=>r.workout_id===wid),g={};
+  wr.forEach(r=>{if(!g[r.emoji])g[r.emoji]=[];g[r.emoji].push(r)});
+  let h='<div class="reactions-bar">';
+  Object.entries(g).forEach(([em,rs])=>{const mine=s&&rs.some(r=>r.user_id===s.user_id);h+=`<span class="reaction-chip${mine?' mine':''}" onclick="toggleWR('${wid}','${em}')">${em} ${rs.length}</span>`});
+  if(s)h+=`<span class="reaction-add" onclick="showWEP(event,'${wid}')">+</span>`;
+  h+='</div>';return h;
+}
+let openWPid=null;
+function showWEP(e,wid){e.stopPropagation();document.querySelectorAll('.emoji-picker').forEach(p=>p.remove());if(openWPid===wid){openWPid=null;return}openWPid=wid;const pk=document.createElement('div');pk.className='emoji-picker';REMOJIS.forEach(em=>{const b=document.createElement('button');b.textContent=em;b.onclick=ev=>{ev.stopPropagation();toggleWR(wid,em);pk.remove();openWPid=null};pk.appendChild(b)});e.target.parentElement.appendChild(pk);const cl=()=>{pk.remove();openWPid=null;document.removeEventListener('click',cl)};setTimeout(()=>document.addEventListener('click',cl),0)}
+async function toggleWR(wid,em){const s=getS();if(!s)return;const ex=allWReactions.find(r=>r.workout_id===wid&&r.user_id===s.user_id&&r.emoji===em);try{if(ex)await sb(`workout_reactions?id=eq.${ex.id}`,{method:'DELETE'});else await sb('workout_reactions',{method:'POST',body:JSON.stringify({workout_id:wid,user_id:s.user_id,emoji:em})});await refreshAll()}catch(e){console.error('toggleWR error:',e)}}
 function renderComments(wid){
   const s=getS(),msgs=allMessages.filter(m=>m.source_workout_id===wid);
   let h='';msgs.forEach(m=>{const u=allUsers.find(x=>x.id===m.user_id);h+=`<div class="comment-item">${avH(u,24)}<div><div class="comment-body"><strong style="color:${uC(m.user_id)}">@${u?esc(u.username):'?'}</strong> ${esc(m.text)}</div><div class="comment-time">${relT(m.created_at)}</div>${renderReactions(m.id)}</div></div>`});
