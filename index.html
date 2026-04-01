@@ -13,7 +13,7 @@ input,textarea,select{font-family:inherit}
 
 /* Topbar */
 .topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border)}
-.app-title{font-size:22px;font-weight:900;background:linear-gradient(135deg,#f59e0b,#fbbf24,#4ade80);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;white-space:nowrap}
+.app-title{font-size:22px;font-weight:900;background:linear-gradient(135deg,#c0c0c0,#e8e8e8,#f59e0b,#ffd700);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;white-space:nowrap;text-transform:capitalize}
 .topbar-right{display:flex;align-items:center;gap:8px}
 .topbar-user{display:flex;align-items:center;gap:6px}
 .topbar-user span{color:var(--accent);font-weight:600;font-size:.85rem}
@@ -268,7 +268,7 @@ input,textarea,select{font-family:inherit}
 
 <!-- Topbar -->
 <div class="topbar">
-  <span class="app-title">April Squad 2026</span>
+  <span class="app-title">April Squad 2026 &#128293;</span>
   <div class="topbar-right" id="topbar-right"></div>
 </div>
 
@@ -586,7 +586,7 @@ function renderCalendar(){
     let ind='';if(calFilter==='all'){allUsers.forEach(u=>{const hw=allWorkouts.some(w=>w.user_id===u.id&&w.workout_date===ds);const hs=allSkips.some(s=>s.user_id===u.id&&s.skip_date===ds&&!s.erased);if(hw)ind+=`<div class="dot" style="background:${uC(u.id)}"></div>`;else if(hs)ind+=`<div class="dot" style="background:${uC(u.id)};opacity:.3"></div>`})}
     else{const uid=calFilter,ws=allWorkouts.filter(w=>w.user_id===uid&&w.workout_date===ds),sk=allSkips.find(s=>s.user_id===uid&&s.skip_date===ds&&!s.erased);const h2=ws.some(w=>w.is_two_a_day);if(ws.length)ind=h2?'<span class="day-icon">&#9989;&#9989;</span>':'<span class="day-icon">&#9989;</span>';else if(sk)ind=sk.is_free?'<span class="day-icon">&#9197;&#65039;</span>':'<span class="day-icon">&#10060;</span>'}
     const ck=isF?'':`onclick="goToDay('${ds}')"`;h+=`<div class="${cls.join(' ')}" ${ck}><div class="day-num">${day}</div><div class="day-indicators">${ind}</div></div>`}
-  h+='</div>';if(calFilter==='all'){h+='<div class="cal-legend">';allUsers.forEach(u=>{h+=`<div class="cal-legend-item">${avH(u,16)} ${esc(u.display_name)}</div>`});h+='</div>'}
+  h+='</div>';if(calFilter==='all'){h+='<div class="cal-legend">';allUsers.forEach(u=>{const wc=allWorkouts.filter(w=>w.user_id===u.id).length;const sc=allSkips.filter(s=>s.user_id===u.id&&!s.erased).length;const psc=allSkips.filter(s=>s.user_id===u.id&&!s.is_free&&!s.erased).length;h+=`<div class="cal-legend-item">${avH(u,16)} <span style="color:${uC(u.id)}">${esc(u.display_name)}</span> <span style="font-size:.7rem;color:var(--text2)">${wc} workout${wc!==1?'s':''}, ${sc} skip${sc!==1?'s':''}${psc?' ($'+psc*20+')':''}</span></div>`});h+='</div>'}
   h+='</div>';el.innerHTML=h;
 }
 
