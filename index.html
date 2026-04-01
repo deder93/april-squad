@@ -41,7 +41,7 @@ input,textarea,select{font-family:inherit}
 .activity-btn:hover{border-color:var(--accent);color:var(--accent)}
 .activity-dot{position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:var(--danger);display:none}
 .activity-dot.show{display:block}
-.activity-panel{display:none;position:absolute;top:50px;right:0;width:340px;max-width:calc(100vw - 32px);max-height:400px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.4);z-index:250;padding:8px 0}
+.activity-panel{display:none;position:fixed;top:54px;right:8px;width:360px;max-width:calc(100vw - 16px);max-height:calc(100vh - 70px);max-height:calc(100dvh - 70px);overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:250;padding:8px 0}
 .activity-panel.open{display:block}
 .activity-item{display:flex;align-items:flex-start;gap:8px;padding:10px 14px;cursor:pointer;transition:background .1s}
 .activity-item:hover{background:var(--surface2)}
@@ -268,7 +268,7 @@ input,textarea,select{font-family:inherit}
   .daily-header h2{font-size:.88rem;min-width:170px}
   .app-title{font-size:18px}
   .ts-grid{grid-template-columns:1fr}
-  .activity-panel{width:calc(100vw - 16px);right:-8px}
+  .activity-panel{right:4px}
 }
 @media(max-width:375px){.cal-grid{gap:2px}.cal-day{min-height:44px}.cal-day .dot{width:5px;height:5px}}
 </style>
@@ -433,7 +433,10 @@ items.forEach(it=>{h+=`<div class="activity-item" onclick="activityNav('${it.nav
 panel.innerHTML=h;panel.classList.add('open');const close=()=>{panel.classList.remove('open');document.removeEventListener('click',close)};setTimeout(()=>document.addEventListener('click',close),0)}
 function buildActivityItems(){const items=[];allWorkouts.forEach(w=>{const u=allUsers.find(x=>x.id===w.user_id);const wt=w.workout_type?wtLabel(w.workout_type):'workout';if(w.is_two_a_day)items.push({time:w.created_at,text:`@${u?u.username:'?'} logged a two-a-day!`,user:u,nav:'daily',date:w.workout_date});else items.push({time:w.created_at,text:`@${u?u.username:'?'} logged a ${wt}`,user:u,nav:'daily',date:w.workout_date})});
 allSkips.forEach(sk=>{const u=allUsers.find(x=>x.id===sk.user_id);if(sk.is_free)items.push({time:sk.created_at,text:`@${u?u.username:'?'} used a free skip`,user:u,nav:'daily',date:sk.skip_date});else items.push({time:sk.created_at,text:`@${u?u.username:'?'} skipped a day ($20)`,user:u,nav:'daily',date:sk.skip_date})});
-allMessages.filter(m=>m.source_type==='workout_comment').forEach(m=>{const u=allUsers.find(x=>x.id===m.user_id);const w=allWorkouts.find(x=>x.id===m.source_workout_id);const wu=w?allUsers.find(x=>x.id===w.user_id):null;items.push({time:m.created_at,text:`@${u?u.username:'?'} commented on @${wu?wu.username:'?'}'s workout`,user:u,nav:'chat',date:''})});
+allMessages.filter(m=>m.source_type==='workout_comment').forEach(m=>{const u=allUsers.find(x=>x.id===m.user_id);const w=allWorkouts.find(x=>x.id===m.source_workout_id);const wu=w?allUsers.find(x=>x.id===w.user_id):null;items.push({time:m.created_at,text:`@${u?u.username:'?'} commented on @${wu?wu.username:'?'}'s workout`,user:u,nav:'daily',date:w?w.workout_date:''})});
+allMessages.filter(m=>m.source_type==='chat').forEach(m=>{const u=allUsers.find(x=>x.id===m.user_id);items.push({time:m.created_at,text:`@${u?u.username:'?'} sent a message${m.photo_url?' with a photo':''}`,user:u,nav:'chat',date:''})});
+allWReactions.forEach(r=>{const u=allUsers.find(x=>x.id===r.user_id);const w=allWorkouts.find(x=>x.id===r.workout_id);const wu=w?allUsers.find(x=>x.id===w.user_id):null;items.push({time:r.created_at,text:`@${u?u.username:'?'} reacted ${r.emoji} to @${wu?wu.username:'?'}'s workout`,user:u,nav:'daily',date:w?w.workout_date:''})});
+allReactions.forEach(r=>{const u=allUsers.find(x=>x.id===r.user_id);items.push({time:r.created_at,text:`@${u?u.username:'?'} reacted ${r.emoji} to a message`,user:u,nav:'chat',date:''})});
 allUsers.forEach(u=>{items.push({time:u.created_at,text:`@${u.username} joined the challenge!`,user:u,nav:'scoreboard',date:''})});
 return items.sort((a,b)=>new Date(b.time)-new Date(a.time))}
 function activityNav(tab,date){document.getElementById('activity-panel').classList.remove('open');if(date)currentDay=date;switchTab(tab)}
