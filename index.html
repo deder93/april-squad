@@ -188,6 +188,10 @@ input,textarea,select{font-family:inherit}
 .cal-day .day-num{font-size:.88rem;font-weight:700;color:var(--text)}
 .cal-day .day-indicators{display:flex;flex-wrap:wrap;justify-content:center;gap:2px}
 .cal-day .dot{width:6px;height:6px;border-radius:50%}
+.cal-day .dot-skip{width:8px;height:8px;position:relative;display:inline-block}
+.cal-day .dot-skip::before,.cal-day .dot-skip::after{content:'';position:absolute;top:50%;left:50%;width:8px;height:1.5px;background:currentColor;opacity:.5}
+.cal-day .dot-skip::before{transform:translate(-50%,-50%) rotate(45deg)}
+.cal-day .dot-skip::after{transform:translate(-50%,-50%) rotate(-45deg)}
 .cal-day .day-icon{font-size:.75rem}
 .cal-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
 .cal-legend-item{display:flex;align-items:center;gap:4px;font-size:.8rem;color:var(--text2)}
@@ -427,7 +431,7 @@ function checkOtherType(pre){const sel=document.getElementById(`${pre}-wo-type`)
 // Global log button
 function openGlobalLog(){
   const s=getS();if(!s)return;
-  if(activeTab==='daily'){toggleLogForm();return}
+  if(activeTab==='daily'){const c=document.getElementById('log-form-collapse');if(c){c.classList.toggle('open');return}}
   const body=document.getElementById('log-modal-body');
   body.innerHTML=workoutFormHtml('glog',todayStr())+`<button class="btn btn-accent" style="width:100%;margin-top:8px" onclick="submitFromModal()">Submit Workout</button>`;
   document.getElementById('log-modal').classList.add('open');
@@ -583,10 +587,10 @@ function renderCalendar(){
   let h=`<div class="tab-panel"><div class="cal-controls"><h2 style="font-size:1rem;color:var(--text2)">April 2026</h2><select onchange="calFilter=this.value;renderCalendar()"><option value="all"${calFilter==='all'?' selected':''}>All Participants</option>${allUsers.map(u=>`<option value="${u.id}"${calFilter===u.id?' selected':''}>${esc(u.display_name)}</option>`).join('')}</select></div><div class="cal-grid">`;
   days.forEach(d=>h+=`<div class="cal-header">${d}</div>`);for(let i=0;i<2;i++)h+='<div class="cal-empty"></div>';
   for(let day=1;day<=30;day++){const ds=`2026-04-${String(day).padStart(2,'0')}`;const isT=ds===today,isF=ds>today;const cls=['cal-day'];if(isT)cls.push('today');if(isF)cls.push('future');
-    let ind='';if(calFilter==='all'){allUsers.forEach(u=>{const hw=allWorkouts.some(w=>w.user_id===u.id&&w.workout_date===ds);const hs=allSkips.some(s=>s.user_id===u.id&&s.skip_date===ds&&!s.erased);if(hw)ind+=`<div class="dot" style="background:${uC(u.id)}"></div>`;else if(hs)ind+=`<div class="dot" style="background:${uC(u.id)};opacity:.3"></div>`})}
+    let ind='';if(calFilter==='all'){allUsers.forEach(u=>{const hw=allWorkouts.some(w=>w.user_id===u.id&&w.workout_date===ds);const hs=allSkips.some(s=>s.user_id===u.id&&s.skip_date===ds&&!s.erased);if(hw)ind+=`<div class="dot" style="background:${uC(u.id)}"></div>`;else if(hs)ind+=`<div class="dot-skip" style="color:${uC(u.id)}"></div>`})}
     else{const uid=calFilter,ws=allWorkouts.filter(w=>w.user_id===uid&&w.workout_date===ds),sk=allSkips.find(s=>s.user_id===uid&&s.skip_date===ds&&!s.erased);const h2=ws.some(w=>w.is_two_a_day);if(ws.length)ind=h2?'<span class="day-icon">&#9989;&#9989;</span>':'<span class="day-icon">&#9989;</span>';else if(sk)ind=sk.is_free?'<span class="day-icon">&#9197;&#65039;</span>':'<span class="day-icon">&#10060;</span>'}
     const ck=isF?'':`onclick="goToDay('${ds}')"`;h+=`<div class="${cls.join(' ')}" ${ck}><div class="day-num">${day}</div><div class="day-indicators">${ind}</div></div>`}
-  h+='</div>';if(calFilter==='all'){h+='<div class="cal-legend">';allUsers.forEach(u=>{const wc=allWorkouts.filter(w=>w.user_id===u.id).length;const sc=allSkips.filter(s=>s.user_id===u.id&&!s.erased).length;const psc=allSkips.filter(s=>s.user_id===u.id&&!s.is_free&&!s.erased).length;h+=`<div class="cal-legend-item">${avH(u,16)} <span style="color:${uC(u.id)}">${esc(u.display_name)}</span> <span style="font-size:.7rem;color:var(--text2)">${wc} workout${wc!==1?'s':''}, ${sc} skip${sc!==1?'s':''}${psc?' ($'+psc*20+')':''}</span></div>`});h+='</div>'}
+  h+='</div>';if(calFilter==='all'){h+='<div class="cal-legend">';allUsers.forEach(u=>{const dw=allWorkouts.filter(w=>w.user_id===u.id&&w.workout_date===currentDay);const dsk=allSkips.find(s=>s.user_id===u.id&&s.skip_date===currentDay&&!s.erased);let status='';if(dw.length>1)status='Workout + 2x';else if(dw.length===1)status='Workout';else if(dsk)status=dsk.is_free?'Free skip':'Paid skip ($20)';else status='\u2014';h+=`<div class="cal-legend-item">${avH(u,16)} <span style="color:${uC(u.id)}">${esc(u.display_name)}</span> <span style="font-size:.7rem;color:var(--text2)">${status}</span></div>`});h+='</div>'}
   h+='</div>';el.innerHTML=h;
 }
 
