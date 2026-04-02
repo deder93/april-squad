@@ -412,20 +412,23 @@ async function doSignup(){const err=document.getElementById('auth-error'),dn=doc
 function logout(){clearS();init()}
 function toggleProfileMenu(e){e.stopPropagation();const m=document.getElementById('profile-menu');m.classList.toggle('open');const cl=()=>{m.classList.remove('open');document.removeEventListener('click',cl)};if(m.classList.contains('open'))setTimeout(()=>document.addEventListener('click',cl),0)}
 function openMyStats(){document.getElementById('profile-menu').classList.remove('open');const s=getS();if(!s)return;const today=todayStr();const u=allUsersRaw.find(x=>x.id===s.user_id)||s;const ws=allWorkouts.filter(w=>w.user_id===s.user_id);const sks=allSkips.filter(x=>x.user_id===s.user_id);const tad=ws.filter(w=>w.is_two_a_day).length;const totalCal=ws.reduce((a,w)=>a+(w.calories_burned||0),0);const totalMin=ws.reduce((a,w)=>a+(w.duration_minutes||0),0);const fU=sks.filter(x=>x.is_free&&!x.erased).length;const pd=sks.filter(x=>!x.is_free&&!x.erased).length;
+  const banked=getBankedCredits(s.user_id);const freeWithBanked=4-fU+banked;
+  const daysW=new Set(ws.map(w=>w.workout_date)).size;
+  const aprilDays=today>='2026-04-01'?Math.min(parseInt(today.split('-')[2]),30):0;
   let streak=0;let cd=new Date(today+'T00:00:00');if(!ws.some(w=>w.workout_date===today))cd.setDate(cd.getDate()-1);while(cd>=new Date('2026-04-01T00:00:00')){if(ws.some(w=>w.workout_date===fmtD(cd))){streak++;cd.setDate(cd.getDate()-1)}else break}
   const tc={};ws.forEach(w=>{if(w.workout_type){tc[w.workout_type]=(tc[w.workout_type]||0)+1}});const tr=Object.entries(tc).sort((a,b)=>b[1]-a[1]);
-  let h=`<div style="padding:20px"><h3 style="margin-bottom:14px">${avH(u,32)} ${esc(u.display_name)}'s Stats</h3><div class="ts-grid">
+  let h=`<div style="padding:20px"><h3 style="margin-bottom:14px">${avH(u,32)} ${esc(u.display_name)}'s MTD Stats</h3><div class="ts-grid">
     <div class="ts-card"><div class="ts-value">${ws.length}</div><div class="ts-label">Workouts</div></div>
+    <div class="ts-card"><div class="ts-value">${daysW}/${aprilDays}</div><div class="ts-label">Days Completed</div></div>
     <div class="ts-card"><div class="ts-value">${streak}</div><div class="ts-label">Day Streak</div></div>
     <div class="ts-card"><div class="ts-value">${totalMin||'\u2014'}</div><div class="ts-label">Minutes</div></div>
     <div class="ts-card"><div class="ts-value">${totalCal||'\u2014'}</div><div class="ts-label">Calories</div></div>
     <div class="ts-card"><div class="ts-value">${tad}</div><div class="ts-label">Two-a-Days</div></div>
-    <div class="ts-card"><div class="ts-value">${4-fU}/4</div><div class="ts-label">Free Skips Left</div></div>
-    <div class="ts-card"><div class="ts-value">${pd}</div><div class="ts-label">Paid Skips</div></div>
-    <div class="ts-card"><div class="ts-value">$${pd*20}</div><div class="ts-label">Owed</div></div>`;
+    <div class="ts-card"><div class="ts-value">${freeWithBanked}/4</div><div class="ts-label">Free Skips Left</div></div>
+    <div class="ts-card"><div class="ts-value">${pd} ($${pd*20})</div><div class="ts-label">Paid Skips / Owed</div></div>`;
   if(tr.length){h+=`<div class="ts-card full"><div class="ts-label" style="margin-bottom:8px;font-size:.85rem;font-weight:600;color:var(--text)">My Workout Types</div>`;tr.forEach(([t,c])=>{h+=`<div class="type-rank"><span>${wtLabel(t)}</span><span class="type-count">${c}</span></div>`});h+=`</div>`}
   h+=`</div></div>`;
-  document.getElementById('log-modal-body').innerHTML=h;document.getElementById('log-modal').querySelector('.modal-header h3').textContent='My Stats';document.getElementById('log-modal').classList.add('open')}
+  document.getElementById('log-modal-body').innerHTML=h;document.getElementById('log-modal').querySelector('.modal-header h3').textContent='My MTD Stats';document.getElementById('log-modal').classList.add('open')}
 function renderAdmin(){const area=document.getElementById('admin-area');if(new URLSearchParams(location.search).get('admin')==='true'&&allUsers.length){let h='<div class="admin-section"><h3>Admin: User List</h3>';allUsers.forEach(u=>{h+=`<div class="admin-user">${esc(u.display_name)} &mdash; @${esc(u.username)}</div>`});h+='</div>';area.innerHTML=h}else area.innerHTML=''}
 
 // Activity feed (Change 11)
