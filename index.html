@@ -482,13 +482,12 @@ async function submitFromModal(){
   const dayW=allWorkouts.filter(w=>w.workout_date===date&&w.user_id===s.user_id);
   const hasReg=dayW.some(w=>!w.is_two_a_day);
   const has2=dayW.some(w=>w.is_two_a_day);
-  const wk=getMon(date);const wk2=allWorkouts.filter(w=>w.user_id===s.user_id&&w.is_two_a_day&&getMon(w.workout_date)===wk);
-  const is2=(hasReg&&!has2&&wk2.length===0);
+  const is2=(hasReg&&!has2);
   if(hasReg&&!is2){alert('Already logged for this day');return}
   let photoUrl=null;
   if(photoEl?.files.length>0){const file=photoEl.files[0],sfx=is2?'2':'1',ext=file.name.split('.').pop()||'jpg',path=`${s.user_id}/${date}-${sfx}.${ext}`;const up=await fetch(`${SB_URL}/storage/v1/object/workout-photos/${path}`,{method:'POST',headers:{'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`,'Content-Type':file.type,'x-upsert':'true'},body:file});if(up.ok)photoUrl=`${SB_URL}/storage/v1/object/public/workout-photos/${path}`}
   await sb('workouts',{method:'POST',body:JSON.stringify({user_id:s.user_id,workout_date:date,workout_type:wtype,description:desc,photo_url:photoUrl,is_two_a_day:is2,duration_minutes:dur,calories_burned:cal})});
-  if(is2){const myS=allSkips.filter(x=>x.user_id===s.user_id&&!x.erased);const paid=myS.filter(x=>!x.is_free).sort((a,b)=>b.skip_date.localeCompare(a.skip_date));const free=myS.filter(x=>x.is_free).sort((a,b)=>b.skip_date.localeCompare(a.skip_date));const toE=paid[0]||free[0];if(toE)await sb(`skips?id=eq.${toE.id}`,{method:'PATCH',body:JSON.stringify({erased:true})});else alert('No skip to erase \u2014 bonus workout!')}
+  if(is2){await loadAll();await tryAutoErase(s.user_id)}
   closeLogModal();await refreshAll();
 }
 
@@ -500,8 +499,7 @@ function renderDaily(){
   const dW=allWorkouts.filter(w=>w.workout_date===currentDay),dSk=allSkips.filter(x=>x.skip_date===currentDay);
   const myW=dW.filter(w=>w.user_id===s.user_id),mySk=dSk.find(x=>x.user_id===s.user_id);
   const hasR=myW.some(w=>!w.is_two_a_day),has2=myW.some(w=>w.is_two_a_day);
-  const wk=getMon(currentDay),wk2=allWorkouts.filter(w=>w.user_id===s.user_id&&w.is_two_a_day&&getMon(w.workout_date)===wk);
-  const can2=hasR&&!has2&&wk2.length===0;
+  const can2=hasR&&!has2;
   const showLog=isEd&&!hasR&&!mySk,show2=isEd&&can2&&!mySk,showSkip=isEd&&!hasR&&!mySk;
   const logIds=new Set([...dW.map(w=>w.user_id),...dSk.filter(x=>!x.erased).map(x=>x.user_id)]);
   const miss=allUsers.filter(u=>!logIds.has(u.id));
@@ -541,16 +539,43 @@ async function submitDailyWorkout(is2){
   let photoUrl=null;
   if(photoEl?.files.length>0){const file=photoEl.files[0],sfx=is2?'2':'1',ext=file.name.split('.').pop()||'jpg',path=`${s.user_id}/${date}-${sfx}.${ext}`;const up=await fetch(`${SB_URL}/storage/v1/object/workout-photos/${path}`,{method:'POST',headers:{'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`,'Content-Type':file.type,'x-upsert':'true'},body:file});if(up.ok)photoUrl=`${SB_URL}/storage/v1/object/public/workout-photos/${path}`}
   await sb('workouts',{method:'POST',body:JSON.stringify({user_id:s.user_id,workout_date:date,workout_type:wtype,description:desc,photo_url:photoUrl,is_two_a_day:is2,duration_minutes:dur,calories_burned:cal})});
-  if(is2){const myS=allSkips.filter(x=>x.user_id===s.user_id&&!x.erased);const paid=myS.filter(x=>!x.is_free).sort((a,b)=>b.skip_date.localeCompare(a.skip_date));const free=myS.filter(x=>x.is_free).sort((a,b)=>b.skip_date.localeCompare(a.skip_date));const toE=paid[0]||free[0];if(toE)await sb(`skips?id=eq.${toE.id}`,{method:'PATCH',body:JSON.stringify({erased:true})});else alert('No skip to erase \u2014 bonus workout!')}
+  if(is2){await loadAll();await tryAutoErase(s.user_id)}
   currentDay=date;await refreshAll();
 }
 async function submitSkip(){
   const s=getS();if(!s)return;
+  const banked=getBankedCredits(s.user_id);
   const myS=allSkips.filter(x=>x.user_id===s.user_id&&!x.erased);
-  const freeUsed=myS.filter(x=>x.is_free).length;const isFree=freeUsed<4;
-  if(!isFree&&!confirm("You've used all 4 free skips. This will cost $20. Confirm?"))return;
-  await sb('skips',{method:'POST',body:JSON.stringify({user_id:s.user_id,skip_date:currentDay,is_free:isFree})});
+  const effectiveFree=myS.filter(x=>x.is_free).length;
+  const isFree=(effectiveFree+banked)<4 || banked>0;// free if under 4 or has banked credits
+  // Determine actual free/paid: first 4 skips are free, banked credits erase additional ones
+  const totalUnerased=myS.length;const willBeFree=totalUnerased<4;
+  if(!willBeFree&&banked<=0&&!confirm("You've used all 4 free skips and have no banked two-a-days. This will cost $20. Confirm?"))return;
+  if(!willBeFree&&banked>0&&!confirm(`This skip will be auto-erased by a banked two-a-day credit (${banked} remaining). Continue?`))return;
+  await sb('skips',{method:'POST',body:JSON.stringify({user_id:s.user_id,skip_date:currentDay,is_free:willBeFree})});
+  await loadAll();if(banked>0)await tryAutoErase(s.user_id);
   await refreshAll();
+}
+
+// Two-a-day credit system: earn max 1 per week, bank for future use
+function getEarnedCredits(userId){
+  // Count qualifying two-a-days: max 1 per calendar week
+  const tads=allWorkouts.filter(w=>w.user_id===userId&&w.is_two_a_day);
+  const weeksCounted=new Set();let earned=0;
+  tads.forEach(w=>{const wk=getMon(w.workout_date);if(!weeksCounted.has(wk)){weeksCounted.add(wk);earned++}});
+  return earned;
+}
+function getSpentCredits(userId){return allSkips.filter(s=>s.user_id===userId&&s.erased).length}
+function getBankedCredits(userId){return Math.max(0,getEarnedCredits(userId)-getSpentCredits(userId))}
+
+// Auto-erase: if user has banked credits, erase their most recent unerased skip (paid first)
+async function tryAutoErase(userId){
+  const banked=getBankedCredits(userId);if(banked<=0)return;
+  const unerased=allSkips.filter(s=>s.user_id===userId&&!s.erased);
+  const paid=unerased.filter(s=>!s.is_free).sort((a,b)=>b.skip_date.localeCompare(a.skip_date));
+  const free=unerased.filter(s=>s.is_free).sort((a,b)=>b.skip_date.localeCompare(a.skip_date));
+  const toE=paid[0]||free[0];
+  if(toE){await sb(`skips?id=eq.${toE.id}`,{method:'PATCH',body:JSON.stringify({erased:true})});console.log('Auto-erased skip',toE.id,'with banked credit')}
 }
 
 // Workout card
@@ -646,10 +671,11 @@ function renderScoreboard(){
   const stats=allUsers.map(u=>{const ws=allWorkouts.filter(w=>w.user_id===u.id),tad=ws.filter(w=>w.is_two_a_day).length,sks=allSkips.filter(s=>s.user_id===u.id),fU=sks.filter(s=>s.is_free&&!s.erased).length,pd=sks.filter(s=>!s.is_free&&!s.erased).length,er=sks.filter(s=>s.erased).length;
     let streak=0;let cd=new Date(today+'T00:00:00');if(!ws.some(w=>w.workout_date===today))cd.setDate(cd.getDate()-1);while(cd>=new Date('2026-04-01T00:00:00')){if(ws.some(w=>w.workout_date===fmtD(cd))){streak++;cd.setDate(cd.getDate()-1)}else break}
     const totalCal=ws.reduce((a,w)=>a+(w.calories_burned||0),0);
-    return{...u,wC:ws.length,tad,fU,pd,er,owed:pd*20,streak,totalCal}}).sort((a,b)=>{if(sbSort==='streak')return b.streak-a.streak||b.wC-a.wC;if(sbSort==='calories')return b.totalCal-a.totalCal||b.wC-a.wC;return b.wC-a.wC});
+    const banked=getBankedCredits(u.id);
+    return{...u,wC:ws.length,tad,fU,pd,er,owed:pd*20,streak,totalCal,banked}}).sort((a,b)=>{if(sbSort==='streak')return b.streak-a.streak||b.wC-a.wC;if(sbSort==='calories')return b.totalCal-a.totalCal||b.wC-a.wC;return b.wC-a.wC});
   let h=`<div class="tab-panel"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><h2 style="font-size:1rem;color:var(--text2)">Leaderboard</h2><select style="padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.8rem;min-height:40px" onchange="sbSort=this.value;renderScoreboard()"><option value="workouts"${sbSort==='workouts'?' selected':''}>By Workouts</option><option value="streak"${sbSort==='streak'?' selected':''}>By Streak</option><option value="calories"${sbSort==='calories'?' selected':''}>By Calories</option></select></div>`;
   stats.forEach((s,i)=>{const ld=i===0&&s.wC>0;
-    h+=`<div class="sb-card${ld?' leader':''}"><div class="sb-rank">${ld?'\ud83c\udfc6':i+1}</div><div class="sb-info"><div class="sb-name-row">${avH(s,40)}<div class="sb-name" style="color:${uC(s.id)}">${nameDaily(s)}</div></div><div class="sb-stats"><span class="sb-stat">${s.wC} workout${s.wC!==1?'s':''}</span><span class="sb-stat">${s.tad} 2x</span><span class="sb-stat streak">${s.streak} day streak</span>${s.totalCal?`<span class="sb-stat">\ud83d\udd25 ${s.totalCal} cal</span>`:''}<span class="sb-stat">${4-s.fU}/4 free skips</span>${s.pd?`<span class="sb-stat owed">${s.pd} paid</span>`:''}<span class="sb-stat owed">Owes $${s.owed}</span>${s.er?`<span class="sb-stat">${s.er} erased</span>`:''}</div></div></div>`});
+    h+=`<div class="sb-card${ld?' leader':''}"><div class="sb-rank">${ld?'\ud83c\udfc6':i+1}</div><div class="sb-info"><div class="sb-name-row">${avH(s,40)}<div class="sb-name" style="color:${uC(s.id)}">${nameDaily(s)}</div></div><div class="sb-stats"><span class="sb-stat">${s.wC} workout${s.wC!==1?'s':''}</span><span class="sb-stat">${s.tad} 2x</span><span class="sb-stat streak">${s.streak} day streak</span>${s.totalCal?`<span class="sb-stat">\ud83d\udd25 ${s.totalCal} cal</span>`:''}<span class="sb-stat">${4-s.fU}/4 free skips</span>${s.pd?`<span class="sb-stat owed">${s.pd} paid</span>`:''}<span class="sb-stat owed">Owes $${s.owed}</span>${s.er?`<span class="sb-stat">${s.er} erased</span>`:''}${s.banked?`<span class="sb-stat streak">${s.banked} banked 2x</span>`:''}</div></div></div>`});
 
   // Team Stats
   const totalW=allWorkouts.length;const totalCal=allWorkouts.reduce((a,w)=>a+(w.calories_burned||0),0);const totalMin=allWorkouts.reduce((a,w)=>a+(w.duration_minutes||0),0);
@@ -717,7 +743,10 @@ async function autoSkipCheck(){
       d.setDate(d.getDate()+1);
     }
   }
-  if(inserted){await loadAll();updatePot();renderTopbar();renderActiveTab()}
+  if(inserted){await loadAll();
+    // Auto-erase skips for users with banked two-a-day credits
+    for(const u of allUsers){const b=getBankedCredits(u.id);if(b>0)await tryAutoErase(u.id)}
+    await loadAll();updatePot();renderTopbar();renderActiveTab()}
 }
 async function init(){
   await loadAll();updatePot();renderTopbar();const s=getS();
