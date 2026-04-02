@@ -506,10 +506,12 @@ function renderDaily(){
   const showLog=isEd&&!hasR&&!mySk,show2=isEd&&can2&&!mySk,showSkip=isEd&&!hasR&&!mySk;
   const logIds=new Set([...dW.map(w=>w.user_id),...dSk.filter(x=>!x.erased).map(x=>x.user_id)]);
   const miss=allUsers.filter(u=>!logIds.has(u.id));
+  const workoutUserIds=new Set(dW.map(w=>w.user_id));const skipUserIds=new Set(dSk.filter(x=>!x.erased).map(x=>x.user_id));
+  const wCount=workoutUserIds.size;const sCount=[...skipUserIds].filter(id=>!workoutUserIds.has(id)).length;
   const doneCount=logIds.size;const totalCount=allUsers.length;
   let h=`<div class="tab-panel"><div class="daily-header"><button class="daily-nav" onclick="navDay(-1)"${canP?'':' disabled'}>&larr;</button><h2>${dn[d.getDay()]}, ${mn[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}</h2><button class="daily-nav" onclick="navDay(1)"${canN?'':' disabled'}>&rarr;</button></div>`;
   h+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px">`;
-  h+=`<div style="font-size:.85rem;font-weight:600;color:${doneCount===totalCount?'var(--accent)':'var(--text)'}">${doneCount} of ${totalCount} have logged workouts</div>`;
+  h+=`<div style="font-size:.85rem;font-weight:600;color:${doneCount===totalCount?'var(--accent)':'var(--text)'}">${doneCount} of ${totalCount} logged \u2014 ${wCount} workout${wCount!==1?'s':''}, ${sCount} skip${sCount!==1?'s':''}</div>`;
   if(miss.length){h+=`<div style="margin-top:6px;font-size:.8rem;color:var(--text2)">Still waiting on: `;miss.forEach((u,i)=>{h+=`${i>0?', ':''}${esc(u.display_name)}`});h+=` <span class="waiting">...</span></div>`}
   h+=`</div>`;
   if(showLog){
