@@ -433,7 +433,7 @@ function checkActivityDot(){const dot=document.getElementById('activity-dot');if
 function toggleActivity(e){e.stopPropagation();const panel=document.getElementById('activity-panel');if(panel.classList.contains('open')){panel.classList.remove('open');return}localStorage.setItem('as_activity_last',String(Date.now()));document.getElementById('activity-dot')?.classList.remove('show');const items=buildActivityItems().slice(0,20);let h='';if(!items.length)h='<div style="padding:14px;color:var(--text2);font-size:.85rem">No activity yet</div>';
 items.forEach(it=>{h+=`<div class="activity-item" onclick="activityNav('${it.nav}','${it.date||''}')"><div>${avH(it.user,24)}</div><div class="activity-text">${it.text}</div><div class="activity-time">${relT(it.time)}</div></div>`});
 panel.innerHTML=h;panel.classList.add('open');const close=()=>{panel.classList.remove('open');document.removeEventListener('click',close)};setTimeout(()=>document.addEventListener('click',close),0)}
-function buildActivityItems(){const items=[];allWorkouts.forEach(w=>{const u=allUsers.find(x=>x.id===w.user_id);const wt=w.workout_type?wtLabel(w.workout_type):'workout';if(w.is_two_a_day)items.push({time:w.created_at,text:`@${u?u.username:'?'} logged a two-a-day!`,user:u,nav:'daily',date:w.workout_date});else items.push({time:w.created_at,text:`@${u?u.username:'?'} logged a ${wt}`,user:u,nav:'daily',date:w.workout_date})});
+function buildActivityItems(){const items=[];allWorkouts.forEach(w=>{const u=allUsers.find(x=>x.id===w.user_id);const wt=w.workout_type?wtLabel(w.workout_type):'workout';if(w.is_two_a_day){const credit=isCreditEarning2x(w);items.push({time:w.created_at,text:`@${u?u.username:'?'} logged a two-a-day${credit?' + earned a free skip \u2b50':''}!`,user:u,nav:'daily',date:w.workout_date})}else items.push({time:w.created_at,text:`@${u?u.username:'?'} logged a ${wt}`,user:u,nav:'daily',date:w.workout_date})});
 allSkips.forEach(sk=>{const u=allUsers.find(x=>x.id===sk.user_id);if(sk.is_free)items.push({time:sk.created_at,text:`@${u?u.username:'?'} used a free skip`,user:u,nav:'daily',date:sk.skip_date});else items.push({time:sk.created_at,text:`@${u?u.username:'?'} skipped a day ($20)`,user:u,nav:'daily',date:sk.skip_date})});
 allMessages.filter(m=>m.source_type==='workout_comment').forEach(m=>{const u=allUsers.find(x=>x.id===m.user_id);const w=allWorkouts.find(x=>x.id===m.source_workout_id);const wu=w?allUsers.find(x=>x.id===w.user_id):null;items.push({time:m.created_at,text:`@${u?u.username:'?'} commented on @${wu?wu.username:'?'}'s workout`,user:u,nav:'daily',date:w?w.workout_date:''})});
 allMessages.filter(m=>m.source_type==='chat').forEach(m=>{const u=allUsers.find(x=>x.id===m.user_id);items.push({time:m.created_at,text:`@${u?u.username:'?'} sent a message${m.photo_url?' with a photo':''}`,user:u,nav:'chat',date:''})});
@@ -565,6 +565,12 @@ function getEarnedCredits(userId){
   tads.forEach(w=>{const wk=getMon(w.workout_date);if(!weeksCounted.has(wk)){weeksCounted.add(wk);earned++}});
   return earned;
 }
+function isCreditEarning2x(w){
+  if(!w.is_two_a_day)return false;
+  const wk=getMon(w.workout_date);
+  const tads=allWorkouts.filter(x=>x.user_id===w.user_id&&x.is_two_a_day&&getMon(x.workout_date)===wk).sort((a,b)=>a.created_at.localeCompare(b.created_at));
+  return tads.length>0&&tads[0].id===w.id;// first 2x of the week earns the credit
+}
 function getSpentCredits(userId){return allSkips.filter(s=>s.user_id===userId&&s.erased).length}
 function getBankedCredits(userId){return Math.max(0,getEarnedCredits(userId)-getSpentCredits(userId))}
 
@@ -583,7 +589,10 @@ function workoutCardHtml(w,ctx){
   const s=getS(),u=allUsers.find(x=>x.id===w.user_id),isO=s&&s.user_id===w.user_id;
   const wMsgs=allMessages.filter(m=>m.source_workout_id===w.id);
   const nameH=ctx==='chat'?nameChat(u):nameDaily(u);
-  let h=`<div class="workout-card" id="wc-${w.id}"><div class="wc-header"><div class="wc-user">${avH(u,32)}<span class="wc-user-name">${nameH}</span></div><div style="display:flex;align-items:center;gap:4px">${w.is_two_a_day?'<span class="badge badge-2x">2x</span>':''}${isO?`<button class="btn-icon" onclick="startEdit('${w.id}')" title="Edit">&#9998;</button><button class="btn-icon" onclick="deleteWorkout('${w.id}')" title="Delete" style="color:var(--danger)">&#128465;</button>`:''}</div></div>`;
+  const isCredit=w.is_two_a_day&&isCreditEarning2x(w);
+  const badgeStyle=isCredit?'background:var(--pot);color:#000':'';
+  const badgeLabel=isCredit?'2x \u2b50':'2x';
+  let h=`<div class="workout-card" id="wc-${w.id}"><div class="wc-header"><div class="wc-user">${avH(u,32)}<span class="wc-user-name">${nameH}</span></div><div style="display:flex;align-items:center;gap:4px">${w.is_two_a_day?`<span class="badge badge-2x" style="${badgeStyle}">${badgeLabel}</span>`:''}${isO?`<button class="btn-icon" onclick="startEdit('${w.id}')" title="Edit">&#9998;</button><button class="btn-icon" onclick="deleteWorkout('${w.id}')" title="Delete" style="color:var(--danger)">&#128465;</button>`:''}</div></div>`;
   if(w.workout_type)h+=`<div style="margin-bottom:6px"><span class="badge-type">${wtLabel(w.workout_type)}</span></div>`;
   if(w.description)h+=`<div class="wc-desc">${esc(w.description)}</div>`;
   h+=`<div class="wc-meta">${w.duration_minutes?`<span class="badge badge-duration">${w.duration_minutes} min</span>`:''}${w.calories_burned?`<span class="badge badge-cal">${w.calories_burned} cal</span>`:''}</div>`;
