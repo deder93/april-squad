@@ -339,7 +339,7 @@ function getMon(ds){const d=new Date(ds+'T00:00:00');const day=d.getDay();const 
 function relT(iso){const s=Math.floor((Date.now()-new Date(iso).getTime())/1000);if(s<60)return'now';if(s<3600)return Math.floor(s/60)+'m';if(s<86400)return Math.floor(s/3600)+'h';if(s<172800)return'yesterday';return Math.floor(s/86400)+'d'}
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
 function shortDate(ds){const d=new Date(ds+'T00:00:00');const m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return`${m[d.getMonth()]} ${d.getDate()}`}
-const COLORS=['#4ade80','#f59e0b','#60a5fa','#c084fc','#facc15','#22d3ee','#f87171','#34d399'];
+const COLORS=['#4ade80','#f59e0b','#60a5fa','#c084fc','#facc15','#22d3ee','#f87171','#c0c0c0','#f472b6'];
 let cMap={};function uC(uid){if(!cMap[uid])cMap[uid]=COLORS[Object.keys(cMap).length%COLORS.length];return cMap[uid]}
 function avH(u,sz){if(!u)return'';if(u.avatar_url)return`<img class="avatar" src="${u.avatar_url}" width="${sz}" height="${sz}" alt="">`;const i=(u.display_name||u.username||'?')[0].toUpperCase();return`<div class="avatar-placeholder" style="width:${sz}px;height:${sz}px;font-size:${Math.round(sz*.45)}px;background:${uC(u.id)}">${i}</div>`}
 
