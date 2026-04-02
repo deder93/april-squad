@@ -697,13 +697,35 @@ function openLightbox(url){document.getElementById('lightbox-img').src=url;docum
 async function refreshAll(){await loadAll();updatePot();renderTopbar();renderActiveTab()}
 
 // Init
+async function autoSkipCheck(){
+  // Client-side fallback: fill in missing skips for past days
+  const s=getS();if(!s)return;
+  const today=todayStr();const start=new Date('2026-04-01T00:00:00');const end=new Date(today+'T00:00:00');
+  end.setDate(end.getDate()-1);// yesterday
+  if(end<start)return;
+  const workoutDates=new Set(allWorkouts.map(w=>`${w.user_id}|${w.workout_date}`));
+  const skipDates=new Set(allSkips.map(s=>`${s.user_id}|${s.skip_date}`));
+  let inserted=false;
+  for(const u of allUsers){
+    let userSkipCount=allSkips.filter(sk=>sk.user_id===u.id&&!sk.erased).length;
+    const d=new Date(start);
+    while(d<=end){const ds=fmtD(d);
+      if(!workoutDates.has(`${u.id}|${ds}`)&&!skipDates.has(`${u.id}|${ds}`)&&ds<='2026-04-30'){
+        const isFree=userSkipCount<4;
+        try{await sb('skips',{method:'POST',body:JSON.stringify({user_id:u.id,skip_date:ds,is_free:isFree})});userSkipCount++;inserted=true}catch(e){console.error('autoSkip insert error:',e)}
+      }
+      d.setDate(d.getDate()+1);
+    }
+  }
+  if(inserted){await loadAll();updatePot();renderTopbar();renderActiveTab()}
+}
 async function init(){
   await loadAll();updatePot();renderTopbar();const s=getS();
   if(s){document.getElementById('auth-area').innerHTML='';document.getElementById('admin-area').innerHTML='';document.getElementById('tab-bar').style.display='flex';document.getElementById('pot-banner').style.display='';
     const hash=location.hash.replace('#','');if(['daily','calendar','scoreboard','chat'].includes(hash))activeTab=hash;
     document.querySelectorAll('.tab-content').forEach(c=>c.classList.toggle('active',c.id===`tab-${activeTab}`));
     document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.toggle('active',b.dataset.tab===activeTab));
-    renderActiveTab()}
+    renderActiveTab();autoSkipCheck()}
   else{document.getElementById('tab-bar').style.display='none';document.getElementById('pot-banner').style.display='none';document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));renderAuth()}}
 window.addEventListener('hashchange',()=>{const h=location.hash.replace('#','');if(['daily','calendar','scoreboard','chat'].includes(h)&&h!==activeTab)switchTab(h)});
 init();
