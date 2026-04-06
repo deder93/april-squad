@@ -768,6 +768,8 @@ function renderChat(){
   const s=getS();if(!s)return;const el=document.getElementById('tab-chat');
   let h=`<div class="chat-container"><div class="chat-messages" id="chat-msg-list">`;
   allMessages.forEach(m=>{const u=allUsers.find(x=>x.id===m.user_id);const isO=s&&s.user_id===m.user_id;
+    const isRecap=m.source_type==='recap';
+    if(isRecap){h+=`<div class="chat-msg" style="border:1px solid var(--pot);background:linear-gradient(135deg,rgba(245,158,11,.08),transparent)"><div class="chat-msg-text" id="mt-${m.id}" style="white-space:pre-line;font-size:.85rem;line-height:1.5">${esc(m.text)}</div><div style="text-align:right;font-size:.7rem;color:var(--text2);margin-top:6px">${relT(m.created_at)}</div>`;h+=renderReactions(m.id)+`</div>`;return}
     h+=`<div class="chat-msg"><div class="chat-msg-header">${avH(u,32)}<span class="chat-msg-name" style="color:${uC(m.user_id)}">${nameChat(u)}</span><span class="chat-msg-time">${relT(m.created_at)}</span>`;
     if(isO)h+=`<div class="msg-menu-wrap" style="margin-left:auto"><button class="msg-menu-btn" onclick="toggleMsgMenu(event,'${m.id}')">&#8230;</button><div class="msg-menu" id="mm-${m.id}"><button onclick="editMsg('${m.id}')">Edit</button><button class="danger" onclick="deleteMsg('${m.id}')">Delete</button></div></div>`;
     h+=`</div><div class="chat-msg-text" id="mt-${m.id}">${esc(m.text)}</div>${m.photo_url?`<img src="${m.photo_url}" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:6px;cursor:pointer" onclick="openLightbox('${m.photo_url}')" alt="Photo">`:''}<div id="me-${m.id}"></div>`;
@@ -841,6 +843,9 @@ function showLoginNotifs(){
   // Sketchy votes on my workouts
   allSketchy.filter(v=>{const w=allWorkouts.find(x=>x.id===v.workout_id);return w&&w.user_id===s.user_id&&new Date(v.created_at).getTime()>lastSeen}).forEach(v=>{
     const u=allUsersRaw.find(x=>x.id===v.user_id);notifs.push({text:`@${u?u.username:'?'} voted your workout as sketchy \ud83d\udc40`,time:v.created_at})});
+  // Weekly recaps
+  const newRecaps=allMessages.filter(m=>m.source_type==='recap'&&new Date(m.created_at).getTime()>lastSeen);
+  if(newRecaps.length)notifs.unshift({text:'\ud83d\udcca New weekly recap posted! Check the Chat tab.',time:newRecaps[0].created_at,isRecap:true});
   if(!notifs.length)return;
   notifs.sort((a,b)=>new Date(b.time)-new Date(a.time));
   document.querySelectorAll('.missed-overlay').forEach(o=>o.remove());
