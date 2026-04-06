@@ -843,10 +843,20 @@ function showLoginNotifs(){
     const u=allUsersRaw.find(x=>x.id===v.user_id);notifs.push({text:`@${u?u.username:'?'} voted your workout as sketchy \ud83d\udc40`,time:v.created_at})});
   if(!notifs.length)return;
   notifs.sort((a,b)=>new Date(b.time)-new Date(a.time));
-  const modal=document.getElementById('log-modal');const body=document.getElementById('log-modal-body');
-  let h=`<div style="padding:10px"><div style="font-size:.85rem;color:var(--text2);margin-bottom:12px">${notifs.length} new update${notifs.length!==1?'s':''} since your last visit</div>`;
-  notifs.slice(0,15).forEach(n=>{h+=`<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:.85rem"><span>${n.text}</span> <span style="font-size:.7rem;color:var(--text2)">${relT(n.time)}</span></div>`});
-  h+=`</div>`;body.innerHTML=h;modal.querySelector('.modal-header h3').textContent="What You Missed";modal.classList.add('open');
+  document.querySelectorAll('.missed-overlay').forEach(o=>o.remove());
+  const overlay=document.createElement('div');overlay.className='missed-overlay';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:400;display:flex;justify-content:center;align-items:flex-start;padding:20px;overflow-y:auto';
+  let h=`<div style="background:var(--surface);border:2px solid var(--accent);border-radius:14px;width:100%;max-width:400px;margin-top:30px;overflow:hidden;animation:modalIn .25s ease">
+    <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <h3 style="font-size:1rem">\ud83d\udd14 What You Missed</h3>
+      <button onclick="this.closest('.missed-overlay').remove()" style="background:none;border:none;color:var(--text2);font-size:1.4rem;cursor:pointer;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center">&times;</button>
+    </div>
+    <div style="padding:14px 18px">
+      <div style="font-size:.85rem;color:var(--accent);margin-bottom:12px;font-weight:600">${notifs.length} update${notifs.length!==1?'s':''} since your last visit</div>`;
+  notifs.slice(0,15).forEach(n=>{h+=`<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:.85rem;display:flex;justify-content:space-between;align-items:center;gap:8px"><span>${n.text}</span><span style="font-size:.7rem;color:var(--text2);white-space:nowrap">${relT(n.time)}</span></div>`});
+  h+=`</div></div>`;
+  overlay.innerHTML=h;overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()});
+  document.body.appendChild(overlay);
 }
 async function init(){
   await loadAll();updatePot();renderTopbar();const s=getS();
@@ -854,7 +864,7 @@ async function init(){
     const hash=location.hash.replace('#','');if(['daily','calendar','scoreboard','chat'].includes(hash))activeTab=hash;
     document.querySelectorAll('.tab-content').forEach(c=>c.classList.toggle('active',c.id===`tab-${activeTab}`));
     document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.toggle('active',b.dataset.tab===activeTab));
-    renderActiveTab();autoSkipCheck();showLoginNotifs()}
+    renderActiveTab();autoSkipCheck().then(()=>setTimeout(showLoginNotifs,500))}
   else{document.getElementById('tab-bar').style.display='none';document.getElementById('pot-banner').style.display='none';document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));renderAuth()}}
 window.addEventListener('hashchange',()=>{const h=location.hash.replace('#','');if(['daily','calendar','scoreboard','chat'].includes(h)&&h!==activeTab)switchTab(h)});
 init();
