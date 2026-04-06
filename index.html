@@ -610,10 +610,10 @@ function workoutCardHtml(w,ctx){
   const logTime=w.created_at?relT(w.created_at):'';
   const skVotes=allSketchy.filter(v=>v.workout_id===w.id);const skCount=skVotes.length;const majority=Math.floor(allUsers.length/2)+1;
   const iVoted=s&&skVotes.some(v=>v.user_id===s.user_id);const isContested=skCount>=majority;const canVote=s&&s.user_id!==w.user_id;
-  let sketchyHtml='';
-  if(isContested)sketchyHtml=`<span style="font-size:.75rem;color:var(--danger);font-weight:600;background:rgba(239,68,68,.15);padding:2px 8px;border-radius:4px">&#128683; Sketchy (${skCount}/${allUsers.length})</span>`;
-  else if(canVote)sketchyHtml=`<span onclick="voteSketchy('${w.id}')" style="font-size:.78rem;cursor:pointer;padding:2px 8px;border-radius:4px;${iVoted?'color:var(--danger);background:rgba(239,68,68,.1)':'color:var(--text2)'}">${iVoted?'&#128064; Sketchy ('+skCount+')':'&#128064; Sketchy'+(skCount?' ('+skCount+')':'')}</span>`;
-  else if(isO&&skCount>0)sketchyHtml=`<span style="font-size:.75rem;color:var(--text2)">&#128064; ${skCount} vote${skCount!==1?'s':''}</span>`;
+  let sketchyHtml='';const skNames=skVotes.map(v=>{const u=allUsersRaw.find(x=>x.id===v.user_id);return u?u.display_name:'?'}).join(', ');const skTitle=skCount?` title="${esc(skNames)}"`:'';
+  if(isContested)sketchyHtml=`<span${skTitle} style="font-size:.75rem;color:var(--danger);font-weight:600;background:rgba(239,68,68,.15);padding:2px 8px;border-radius:4px">&#128683; Sketchy (${skCount}/${allUsers.length})</span>`;
+  else if(canVote)sketchyHtml=`<span${skTitle} onclick="voteSketchy('${w.id}')" style="font-size:.78rem;cursor:pointer;padding:2px 8px;border-radius:4px;${iVoted?'color:var(--danger);background:rgba(239,68,68,.1)':'color:var(--text2)'}">${iVoted?'&#128064; Sketchy ('+skCount+')':'&#128064; Sketchy'+(skCount?' ('+skCount+')':'')}</span>`;
+  else if(isO&&skCount>0)sketchyHtml=`<span${skTitle} style="font-size:.75rem;color:var(--text2)">&#128064; ${skCount} vote${skCount!==1?'s':''}</span>`;
   h+=`<div style="display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap"><span class="badge badge-comment" onclick="toggleComments('${w.id}')">&#128172; ${wMsgs.length}</span><span class="reaction-add" onclick="showWEP(event,'${w.id}')" style="font-size:.85rem">+ Emoji</span>${sketchyHtml}<span style="margin-left:auto;font-size:.7rem;color:var(--text2)">Logged ${logTime}</span></div>`;
   h+=`<div id="edit-area-${w.id}"></div><div class="comments-area" id="comments-${w.id}" style="display:none">${renderComments(w.id)}</div></div>`;
   return h;
@@ -624,7 +624,7 @@ function renderWReactions(wid){
   const s=getS(),wr=allWReactions.filter(r=>r.workout_id===wid),g={};
   wr.forEach(r=>{if(!g[r.emoji])g[r.emoji]=[];g[r.emoji].push(r)});
   let h='<div class="reactions-bar">';
-  Object.entries(g).forEach(([em,rs])=>{const mine=s&&rs.some(r=>r.user_id===s.user_id);h+=`<span class="reaction-chip${mine?' mine':''}" onclick="toggleWR('${wid}','${em}')">${em} ${rs.length}</span>`});
+  Object.entries(g).forEach(([em,rs])=>{const mine=s&&rs.some(r=>r.user_id===s.user_id);const names=rs.map(r=>{const u=allUsersRaw.find(x=>x.id===r.user_id);return u?u.display_name:'?'}).join(', ');h+=`<span class="reaction-chip${mine?' mine':''}" onclick="toggleWR('${wid}','${em}')" title="${esc(names)}">${em} ${rs.length}</span>`});
   h+='</div>';return h;
 }
 let openWPid=null;
@@ -666,7 +666,7 @@ function renderReactions(mid){
   const s=getS(),mr=allReactions.filter(r=>r.message_id===mid),g={};
   mr.forEach(r=>{if(!g[r.emoji])g[r.emoji]=[];g[r.emoji].push(r)});
   let h='<div class="reactions-bar">';
-  Object.entries(g).forEach(([em,rs])=>{const mine=s&&rs.some(r=>r.user_id===s.user_id);h+=`<span class="reaction-chip${mine?' mine':''}" onclick="toggleR('${mid}','${em}')">${em} ${rs.length}</span>`});
+  Object.entries(g).forEach(([em,rs])=>{const mine=s&&rs.some(r=>r.user_id===s.user_id);const names=rs.map(r=>{const u=allUsersRaw.find(x=>x.id===r.user_id);return u?u.display_name:'?'}).join(', ');h+=`<span class="reaction-chip${mine?' mine':''}" onclick="toggleR('${mid}','${em}')" title="${esc(names)}">${em} ${rs.length}</span>`});
   h+=`<span class="reaction-add" onclick="showEP(event,'${mid}')">+</span></div>`;return h;
 }
 function skipCardHtml(sk){
