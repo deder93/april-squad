@@ -1,0 +1,6 @@
+# Claude Code local project settings
+.claude/
+
+# Directory junction to ~/.claude/projects/C--Users-DEder-april-squad
+.sessions
+.sessions/
