@@ -355,6 +355,7 @@ function nameTopbar(u){return esc(u.display_name||u.username)}
 
 // State
 const HIDDEN_USERS=['test'];
+const NO_STAKE_USERS=['ajhasslinger'];// shown on leaderboard but excluded from pot + team avg
 let allUsersRaw=[],allUsers=[],allWorkouts=[],allSkips=[],allMessages=[],allReactions=[],allWReactions=[],allSketchy=[];
 let currentDay=todayStr(),activeTab='daily',calFilter='all',sbSort='workouts';
 const scrollPos={};
@@ -368,7 +369,7 @@ async function loadAll(){
 }
 
 // Pot
-function updatePot(){const p=allSkips.filter(s=>!s.is_free&&!s.erased);document.getElementById('pot-amount').textContent=`The Pot: $${p.length*20}`;document.getElementById('pot-sub').textContent=`${p.length} paid skip${p.length!==1?'s':''} so far`}
+function updatePot(){const noStakeIds=new Set(allUsersRaw.filter(u=>NO_STAKE_USERS.includes(u.username)).map(u=>u.id));const p=allSkips.filter(s=>!s.is_free&&!s.erased&&!noStakeIds.has(s.user_id));document.getElementById('pot-amount').textContent=`The Pot: $${p.length*20}`;document.getElementById('pot-sub').textContent=`${p.length} paid skip${p.length!==1?'s':''} so far`}
 
 // Motivation
 const QUOTES=["The only bad workout is the one that didn't happen.","Sore today, strong tomorrow.","I don't sweat, I sparkle.","Your body can stand almost anything. It's your mind you have to convince.","I really regret that workout. \u2014 No one ever","Somebody busier than you is working out right now.","Siri, work out for me.","You're one workout away from a good mood.","Strive for progress, not perfection.","No pain, no gain. Just kidding, please stretch.","Exercise? I thought you said extra fries.","Sweat is just fat crying.","Be stronger than your excuses.","The gym called. You've been ghosting them.","Your only limit is you. And gravity.","Muscles are torn in the gym, fed in the kitchen, built in bed.","Today's workout is tomorrow's warm-up.","You don't have to be great to start, but you have to start to be great.","Fit is not a destination. It's a way of life. Or so I'm told.","The hardest lift is lifting your butt off the couch.","Running late counts as cardio, right?","I work out because I'd be the first to die in the Hunger Games.","Leg day: because friends don't let friends skip leg day.","My warmup is your workout. JK, my warmup is lying on the floor.","You miss 100% of the workouts you skip.","Alexa, give me abs.","The $20 skip fee is also a workout. For your wallet.","Pain is weakness leaving the body. Or just pain."];
@@ -608,7 +609,7 @@ function workoutCardHtml(w,ctx){
   if(w.photo_url)h+=`<div><div id="wp-${w.id}"><img class="wc-photo" src="${w.photo_url}" onclick="openLightbox('${w.photo_url}')" alt="Workout photo"></div><button onclick="togglePhoto('${w.id}')" id="wpb-${w.id}" style="background:var(--surface2);border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:4px 12px;font-size:.75rem;cursor:pointer;min-height:28px;margin-top:4px">Hide Photo</button></div>`;
   h+=renderWReactions(w.id);
   const logTime=w.created_at?relT(w.created_at):'';
-  const skVotes=allSketchy.filter(v=>v.workout_id===w.id);const skCount=skVotes.length;const majority=Math.floor(allUsers.length/2)+1;
+  const skVotes=allSketchy.filter(v=>v.workout_id===w.id);const skCount=skVotes.length;const majority=4;
   const iVoted=s&&skVotes.some(v=>v.user_id===s.user_id);const isContested=skCount>=majority;const canVote=s&&s.user_id!==w.user_id;
   let sketchyHtml='';const skNames=skVotes.map(v=>{const u=allUsersRaw.find(x=>x.id===v.user_id);return u?u.display_name:'?'}).join(', ');const skTitle=skCount?` title="${esc(skNames)}"`:'';
   if(isContested)sketchyHtml=`<span${skTitle} style="font-size:.75rem;color:var(--danger);font-weight:600;background:rgba(239,68,68,.15);padding:2px 8px;border-radius:4px">&#128683; Sketchy (${skCount}/${allUsers.length})</span>`;
@@ -638,12 +639,12 @@ async function voteSketchy(wid){const s=getS();if(!s)return;
   try{
     if(existing){await sb(`sketchy_votes?id=eq.${existing.id}`,{method:'DELETE'})}
     else{
-      if(!confirm('Vote this workout as sketchy? If majority agrees, it costs the person $20.'))return;
+      if(!confirm('Vote this workout as sketchy? If 4 people agree, it costs the person $20.'))return;
       await sb('sketchy_votes',{method:'POST',body:JSON.stringify({workout_id:wid,user_id:s.user_id})});
       // Check if majority reached after voting
       await loadAll();
       const votes=allSketchy.filter(v=>v.workout_id===wid).length;
-      const majority=Math.floor(allUsers.length/2)+1;
+      const majority=4;
       if(votes>=majority){
         // Auto-insert a paid skip for the workout owner
         const existingSkip=allSkips.find(sk=>sk.user_id===w.user_id&&sk.skip_date===w.workout_date);
@@ -740,7 +741,9 @@ function renderScoreboard(){
     const totalCal=ws.reduce((a,w)=>a+(w.calories_burned||0),0);
     const banked=getBankedCredits(u.id);const freeWithBanked=4-fU+banked;
     const aprilDays=today>='2026-04-01'?Math.min(parseInt(today.split('-')[2]),30):0;
-    return{...u,wC:ws.length,daysW,fU,pd,er,owed:pd*20,streak,totalCal,banked,freeWithBanked,aprilDays}}).sort((a,b)=>{const tb=(x,y)=>x.wC-y.wC||x.streak-y.streak||x.totalCal-y.totalCal;if(sbSort==='days')return b.daysW-a.daysW||tb(b,a);if(sbSort==='streak')return b.streak-a.streak||tb(b,a);if(sbSort==='calories')return b.totalCal-a.totalCal||tb(b,a);return b.wC-a.wC||tb(b,a)});
+    const noStake=NO_STAKE_USERS.includes(u.username);
+    const effPd=noStake?0:pd;const effOwed=noStake?0:pd*20;
+    return{...u,wC:ws.length,daysW,fU,pd:effPd,er,owed:effOwed,streak,totalCal,banked,freeWithBanked,aprilDays,noStake}}).sort((a,b)=>{const tb=(x,y)=>x.wC-y.wC||x.streak-y.streak||x.totalCal-y.totalCal;if(sbSort==='days')return b.daysW-a.daysW||tb(b,a);if(sbSort==='streak')return b.streak-a.streak||tb(b,a);if(sbSort==='calories')return b.totalCal-a.totalCal||tb(b,a);return b.wC-a.wC||tb(b,a)});
   let h=`<div class="tab-panel"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><h2 style="font-size:1rem;color:var(--text2)">Leaderboard</h2><select style="padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.8rem;min-height:40px" onchange="sbSort=this.value;renderScoreboard()"><option value="workouts"${sbSort==='workouts'?' selected':''}>By Workouts</option><option value="days"${sbSort==='days'?' selected':''}>By Days</option><option value="streak"${sbSort==='streak'?' selected':''}>By Streak</option><option value="calories"${sbSort==='calories'?' selected':''}>By Calories</option></select></div>`;
   stats.forEach((s,i)=>{const ld=i===0&&s.wC>0;
     h+=`<div class="sb-card${ld?' leader':''}"><div class="sb-rank">${ld?'\ud83c\udfc6':i+1}</div><div class="sb-info"><div class="sb-name-row">${avH(s,40)}<div class="sb-name" style="color:${uC(s.id)}">${nameDaily(s)}</div></div><div class="sb-stats"><span class="sb-stat">${s.wC} workout${s.wC!==1?'s':''}</span><span class="sb-stat">${s.daysW}/${s.aprilDays} days</span><span class="sb-stat streak">${s.streak} day streak</span>${s.totalCal?`<span class="sb-stat">\ud83d\udd25 ${s.totalCal} cal</span>`:''}<span class="sb-stat">${s.freeWithBanked}/4 free skips</span>${s.pd?`<span class="sb-stat owed">${s.pd} paid</span>`:''}<span class="sb-stat owed">Owes $${s.owed}</span>${s.er?`<span class="sb-stat">${s.er} erased</span>`:''}</div></div></div>`});
@@ -750,8 +753,9 @@ function renderScoreboard(){
   const typeCounts={};allWorkouts.forEach(w=>{if(w.workout_type){typeCounts[w.workout_type]=(typeCounts[w.workout_type]||0)+1}});
   const typeRank=Object.entries(typeCounts).sort((a,b)=>b[1]-a[1]);
   const apDays=today>='2026-04-01'?Math.min(parseInt(today.split('-')[2]),30):0;
-  const totalDaysW=allUsers.reduce((a,u)=>a+new Set(allWorkouts.filter(w=>w.user_id===u.id).map(w=>w.workout_date)).size,0);
-  const avgDaysN=allUsers.length?Math.round(totalDaysW/allUsers.length*10)/10:0;
+  const stakeUsers=allUsers.filter(u=>!NO_STAKE_USERS.includes(u.username));
+  const totalDaysW=stakeUsers.reduce((a,u)=>a+new Set(allWorkouts.filter(w=>w.user_id===u.id).map(w=>w.workout_date)).size,0);
+  const avgDaysN=stakeUsers.length?Math.round(totalDaysW/stakeUsers.length*10)/10:0;
   const avgPct=apDays?Math.round(avgDaysN/apDays*100):0;
 
   h+=`<div class="team-stats"><h3>Team Stats</h3><div class="ts-grid">
