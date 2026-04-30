@@ -773,6 +773,8 @@ function renderChat(){
   let h=`<div class="chat-container"><div class="chat-messages" id="chat-msg-list">`;
   allMessages.forEach(m=>{const u=allUsers.find(x=>x.id===m.user_id);const isO=s&&s.user_id===m.user_id;
     const isRecap=m.source_type==='recap';
+    const isMonthRecap=m.source_type==='monthly_recap';
+    if(isMonthRecap){h+=`<div class="chat-msg" style="border:2px solid var(--pot);background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(74,222,128,.08),var(--surface));box-shadow:0 0 24px rgba(245,158,11,.15)"><div style="text-align:center;font-size:1.3rem;margin-bottom:6px">🎉🏆🎉</div><div class="chat-msg-text" id="mt-${m.id}" style="white-space:pre-line;font-size:.85rem;line-height:1.55">${esc(m.text)}</div><div style="text-align:right;font-size:.7rem;color:var(--text2);margin-top:6px">${relT(m.created_at)}</div>`;h+=renderReactions(m.id)+`</div>`;return}
     if(isRecap){h+=`<div class="chat-msg" style="border:1px solid var(--pot);background:linear-gradient(135deg,rgba(245,158,11,.08),transparent)"><div class="chat-msg-text" id="mt-${m.id}" style="white-space:pre-line;font-size:.85rem;line-height:1.5">${esc(m.text)}</div><div style="text-align:right;font-size:.7rem;color:var(--text2);margin-top:6px">${relT(m.created_at)}</div>`;h+=renderReactions(m.id)+`</div>`;return}
     h+=`<div class="chat-msg"><div class="chat-msg-header">${avH(u,32)}<span class="chat-msg-name" style="color:${uC(m.user_id)}">${nameChat(u)}</span><span class="chat-msg-time">${relT(m.created_at)}</span>`;
     if(isO)h+=`<div class="msg-menu-wrap" style="margin-left:auto"><button class="msg-menu-btn" onclick="toggleMsgMenu(event,'${m.id}')">&#8230;</button><div class="msg-menu" id="mm-${m.id}"><button onclick="editMsg('${m.id}')">Edit</button><button class="danger" onclick="deleteMsg('${m.id}')">Delete</button></div></div>`;
@@ -850,22 +852,43 @@ function showLoginNotifs(){
   // Weekly recaps
   const newRecaps=allMessages.filter(m=>m.source_type==='recap'&&new Date(m.created_at).getTime()>lastSeen);
   const hasRecap=newRecaps.length>0;
-  if(!notifs.length&&!hasRecap)return;
+  // Monthly recap (April 2026 final): show until user dismisses, persisted by id
+  const monthRecaps=allMessages.filter(m=>m.source_type==='monthly_recap').sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  const latestMonthRecap=monthRecaps[0];
+  const seenMonthRecapId=localStorage.getItem('as_month_recap_seen');
+  const showMonthRecap=latestMonthRecap&&seenMonthRecapId!==latestMonthRecap.id;
+  if(!notifs.length&&!hasRecap&&!showMonthRecap)return;
   notifs.sort((a,b)=>new Date(b.time)-new Date(a.time));
   document.querySelectorAll('.missed-overlay').forEach(o=>o.remove());
   const overlay=document.createElement('div');overlay.className='missed-overlay';
-  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:400;display:flex;justify-content:center;align-items:flex-start;padding:20px;overflow-y:auto';
-  let h=`<div style="background:var(--surface);border:2px solid var(--accent);border-radius:14px;width:100%;max-width:440px;margin-top:30px;overflow:hidden;animation:modalIn .25s ease">
-    <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-      <h3 style="font-size:1rem">\ud83d\udd14 What You Missed</h3>
-      <button onclick="this.closest('.missed-overlay').remove()" style="background:none;border:none;color:var(--text2);font-size:1.4rem;cursor:pointer;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center">&times;</button>
-    </div>
-    <div style="padding:14px 18px">`;
-  if(hasRecap){const recap=newRecaps[newRecaps.length-1];h+=`<div style="border:1px solid var(--pot);border-radius:10px;padding:14px;margin-bottom:14px;background:linear-gradient(135deg,rgba(245,158,11,.08),transparent);white-space:pre-line;font-size:.82rem;line-height:1.5">${esc(recap.text)}</div>`}
-  if(notifs.length){h+=`<div style="font-size:.85rem;color:var(--accent);margin-bottom:10px;font-weight:600">${notifs.length} update${notifs.length!==1?'s':''}</div>`;
-  notifs.slice(0,15).forEach(n=>{h+=`<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:.85rem;display:flex;justify-content:space-between;align-items:center;gap:8px"><span>${n.text}</span><span style="font-size:.7rem;color:var(--text2);white-space:nowrap">${relT(n.time)}</span></div>`})}
-  h+=`</div></div>`;
-  overlay.innerHTML=h;overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()});
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:400;display:flex;justify-content:center;align-items:flex-start;padding:20px;overflow-y:auto';
+  let h='';
+  if(showMonthRecap){
+    // CELEBRATION OVERLAY for monthly recap
+    h=`<div style="background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(74,222,128,.1),var(--surface));border:3px solid var(--pot);border-radius:16px;width:100%;max-width:480px;margin-top:20px;overflow:hidden;animation:modalIn .35s ease;box-shadow:0 0 60px rgba(245,158,11,.3)">
+      <div style="padding:18px 18px 12px;text-align:center;border-bottom:1px solid var(--border);position:relative">
+        <div style="font-size:2.2rem;margin-bottom:4px">\ud83c\udf89\ud83c\udfc6\ud83c\udf89</div>
+        <h3 style="font-size:1.15rem;font-weight:900;background:linear-gradient(135deg,#f59e0b,#fbbf24,#4ade80);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">YOU CRUSHED APRIL SQUAD 2026!</h3>
+        <button onclick="document.querySelector('.missed-overlay').remove();localStorage.setItem('as_month_recap_seen','${latestMonthRecap.id}')" style="position:absolute;top:12px;right:12px;background:none;border:none;color:var(--text2);font-size:1.4rem;cursor:pointer;min-width:36px;min-height:36px;display:flex;align-items:center;justify-content:center">&times;</button>
+      </div>
+      <div style="padding:14px 18px;white-space:pre-line;font-size:.85rem;line-height:1.55">${esc(latestMonthRecap.text)}</div>
+      <div style="padding:14px 18px;border-top:1px solid var(--border);text-align:center"><button onclick="document.querySelector('.missed-overlay').remove();localStorage.setItem('as_month_recap_seen','${latestMonthRecap.id}')" style="background:var(--accent);color:#000;border:none;padding:10px 24px;border-radius:8px;font-size:.9rem;font-weight:700;cursor:pointer;min-height:44px">Heck Yeah! \ud83d\udcaa</button></div>
+    </div>`;
+  }else{
+    h=`<div style="background:var(--surface);border:2px solid var(--accent);border-radius:14px;width:100%;max-width:440px;margin-top:30px;overflow:hidden;animation:modalIn .25s ease">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+        <h3 style="font-size:1rem">\ud83d\udd14 What You Missed</h3>
+        <button onclick="this.closest('.missed-overlay').remove()" style="background:none;border:none;color:var(--text2);font-size:1.4rem;cursor:pointer;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center">&times;</button>
+      </div>
+      <div style="padding:14px 18px">`;
+    if(hasRecap){const recap=newRecaps[newRecaps.length-1];h+=`<div style="border:1px solid var(--pot);border-radius:10px;padding:14px;margin-bottom:14px;background:linear-gradient(135deg,rgba(245,158,11,.08),transparent);white-space:pre-line;font-size:.82rem;line-height:1.5">${esc(recap.text)}</div>`}
+    if(notifs.length){h+=`<div style="font-size:.85rem;color:var(--accent);margin-bottom:10px;font-weight:600">${notifs.length} update${notifs.length!==1?'s':''}</div>`;
+    notifs.slice(0,15).forEach(n=>{h+=`<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:.85rem;display:flex;justify-content:space-between;align-items:center;gap:8px"><span>${n.text}</span><span style="font-size:.7rem;color:var(--text2);white-space:nowrap">${relT(n.time)}</span></div>`})}
+    h+=`</div></div>`;
+  }
+  overlay.innerHTML=h;
+  if(showMonthRecap){overlay.addEventListener('click',e=>{if(e.target===overlay){overlay.remove();localStorage.setItem('as_month_recap_seen',latestMonthRecap.id)}})}
+  else{overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()})}
   document.body.appendChild(overlay);
 }
 async function init(){
