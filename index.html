@@ -131,7 +131,8 @@ input,textarea,select{font-family:inherit}
 .skip-badge{padding:3px 10px;border-radius:4px;font-size:.75rem;font-weight:700}
 .skip-badge-paid{background:var(--danger);color:#fff}
 .skip-badge-free{background:var(--accent2);color:#000}
-.skip-badge-erased{background:var(--surface2);color:var(--text2);text-decoration:line-through}
+.skip-badge-erased{background:#ffd700;color:#000}
+.skip-card.erased{border-color:#ffd700;background:linear-gradient(135deg,rgba(255,215,0,.08),var(--surface))}
 
 /* Comments */
 .comments-area{border-top:1px solid var(--border);margin-top:8px;padding-top:8px}
@@ -508,14 +509,18 @@ function renderDaily(){
   const hasR=myW.some(w=>!w.is_two_a_day),has2=myW.some(w=>w.is_two_a_day);
   const can2=hasR&&!has2;
   const showLog=isEd&&!hasR&&!mySk,show2=isEd&&can2&&!mySk,showSkip=isEd&&!hasR&&!mySk;
-  const logIds=new Set([...dW.map(w=>w.user_id),...dSk.filter(x=>!x.erased).map(x=>x.user_id)]);
+  const workoutUserIds=new Set(dW.map(w=>w.user_id));
+  const activeSkipUserIds=new Set(dSk.filter(x=>!x.erased).map(x=>x.user_id));
+  const erasedSkipUserIds=new Set(dSk.filter(x=>x.erased).map(x=>x.user_id));
+  const logIds=new Set([...workoutUserIds,...activeSkipUserIds,...erasedSkipUserIds]);
   const miss=allUsers.filter(u=>!logIds.has(u.id));
-  const workoutUserIds=new Set(dW.map(w=>w.user_id));const skipUserIds=new Set(dSk.filter(x=>!x.erased).map(x=>x.user_id));
-  const wCount=workoutUserIds.size;const sCount=[...skipUserIds].filter(id=>!workoutUserIds.has(id)).length;
+  const wCount=workoutUserIds.size;
+  const sCount=[...activeSkipUserIds].filter(id=>!workoutUserIds.has(id)).length;
+  const eCount=[...erasedSkipUserIds].filter(id=>!workoutUserIds.has(id)&&!activeSkipUserIds.has(id)).length;
   const doneCount=logIds.size;const totalCount=allUsers.length;
   let h=`<div class="tab-panel"><div class="daily-header"><button class="daily-nav" onclick="navDay(-1)"${canP?'':' disabled'}>&larr;</button><h2>${dn[d.getDay()]}, ${mn[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}</h2><button class="daily-nav" onclick="navDay(1)"${canN?'':' disabled'}>&rarr;</button></div>`;
   h+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px">`;
-  h+=`<div style="font-size:.85rem;font-weight:600;color:${doneCount===totalCount?'var(--accent)':'var(--text)'}">${doneCount} of ${totalCount} logged \u2014 ${wCount} workout${wCount!==1?'s':''}, ${sCount} skip${sCount!==1?'s':''}</div>`;
+  h+=`<div style="font-size:.85rem;font-weight:600;color:${doneCount===totalCount?'var(--accent)':'var(--text)'}">${doneCount} of ${totalCount} logged \u2014 ${wCount} workout${wCount!==1?'s':''}, ${sCount} skip${sCount!==1?'s':''}${eCount?`, ${eCount} covered by 2x`:''}</div>`;
   if(miss.length){h+=`<div style="margin-top:6px;font-size:.8rem;color:var(--text2)">Still waiting on: `;miss.forEach((u,i)=>{h+=`${i>0?', ':''}${esc(u.display_name)}`});h+=` <span class="waiting">...</span></div>`}
   h+=`</div>`;
   if(showLog){
@@ -673,8 +678,9 @@ function renderReactions(mid){
 function skipCardHtml(sk){
   const s=getS(),u=allUsers.find(x=>x.id===sk.user_id),isO=s&&s.user_id===sk.user_id;
   let bc=sk.erased?'skip-badge-erased':(sk.is_free?'skip-badge-free':'skip-badge-paid');
-  let bt=sk.erased?'Erased':(sk.is_free?'Free Skip':'Paid $20');
-  return`<div class="skip-card">${avH(u,32)}<span style="flex:1;font-size:.88rem">${nameDaily(u)}</span><span class="skip-badge ${bc}">${bt}</span>${isO&&!sk.erased?`<button class="btn-icon" onclick="deleteSkip('${sk.id}')" title="Remove" style="color:var(--danger)">&#128465;</button>`:''}</div>`;
+  let bt=sk.erased?'⭐ Covered by 2x':(sk.is_free?'😴 Free Skip':'💸 Paid $20');
+  const cardCls=sk.erased?'skip-card erased':'skip-card';
+  return`<div class="${cardCls}">${avH(u,32)}<span style="flex:1;font-size:.88rem">${nameDaily(u)}</span><span class="skip-badge ${bc}">${bt}</span>${isO&&!sk.erased?`<button class="btn-icon" onclick="deleteSkip('${sk.id}')" title="Remove" style="color:var(--danger)">&#128465;</button>`:''}</div>`;
 }
 
 // Edit/Delete workout
@@ -709,11 +715,11 @@ function renderCalendar(){
   let h=`<div class="tab-panel"><div class="cal-controls"><h2 style="font-size:1rem;color:var(--text2)">April 2026</h2><select onchange="calFilter=this.value;renderCalendar()"><option value="all"${calFilter==='all'?' selected':''}>All Participants</option>${allUsers.map(u=>`<option value="${u.id}"${calFilter===u.id?' selected':''}>${esc(u.display_name)}</option>`).join('')}</select></div><div class="cal-grid">`;
   days.forEach(d=>h+=`<div class="cal-header">${d}</div>`);for(let i=0;i<2;i++)h+='<div class="cal-empty"></div>';
   for(let day=1;day<=30;day++){const ds=`2026-04-${String(day).padStart(2,'0')}`;const isT=ds===today,isF=ds>today;const cls=['cal-day'];if(isT)cls.push('today');if(isF)cls.push('future');
-    let ind='';if(calFilter==='all'){allUsers.forEach(u=>{const hw=allWorkouts.some(w=>w.user_id===u.id&&w.workout_date===ds);const hs=allSkips.some(s=>s.user_id===u.id&&s.skip_date===ds&&!s.erased);if(hw)ind+=`<div class="dot" style="background:${uC(u.id)}"></div>`;else if(hs)ind+=`<div class="dot-skip" style="color:${uC(u.id)}"></div>`})}
-    else{const uid=calFilter,ws=allWorkouts.filter(w=>w.user_id===uid&&w.workout_date===ds),sk=allSkips.find(s=>s.user_id===uid&&s.skip_date===ds&&!s.erased);const h2=ws.some(w=>w.is_two_a_day);if(ws.length)ind=h2?'<span class="day-icon">&#9989;&#9989;</span>':'<span class="day-icon">&#9989;</span>';else if(sk)ind=sk.is_free?'<span class="day-icon">&#9197;&#65039;</span>':'<span class="day-icon">&#10060;</span>'}
+    let ind='';if(calFilter==='all'){allUsers.forEach(u=>{const hw=allWorkouts.some(w=>w.user_id===u.id&&w.workout_date===ds);const hs=allSkips.some(s=>s.user_id===u.id&&s.skip_date===ds&&!s.erased);const hes=allSkips.some(s=>s.user_id===u.id&&s.skip_date===ds&&s.erased);if(hw)ind+=`<div class="dot" style="background:${uC(u.id)}"></div>`;else if(hs)ind+=`<div class="dot-skip" style="color:${uC(u.id)}"></div>`;else if(hes)ind+=`<div class="dot" style="background:#ffd700;border:1px solid ${uC(u.id)}" title="Covered by 2x"></div>`})}
+    else{const uid=calFilter,ws=allWorkouts.filter(w=>w.user_id===uid&&w.workout_date===ds),sk=allSkips.find(s=>s.user_id===uid&&s.skip_date===ds&&!s.erased),erSk=allSkips.find(s=>s.user_id===uid&&s.skip_date===ds&&s.erased);const h2=ws.some(w=>w.is_two_a_day);if(ws.length)ind=h2?'<span class="day-icon">&#9989;&#9989;</span>':'<span class="day-icon">&#9989;</span>';else if(sk)ind=sk.is_free?'<span class="day-icon">&#9197;&#65039;</span>':'<span class="day-icon">&#10060;</span>';else if(erSk)ind='<span class="day-icon" style="color:#ffd700" title="Covered by 2x">⭐</span>'}
     const sel=currentDay===ds?' selected':'';
     const ck=isF?'':`onclick="selectCalDay('${ds}')" ondblclick="goToDay('${ds}')"`;h+=`<div class="${cls.join(' ')}${sel}" ${ck}><div class="day-num">${day}</div><div class="day-indicators">${ind}</div></div>`}
-  h+='</div>';if(calFilter==='all'){h+='<div class="cal-legend">';allUsers.forEach(u=>{const dw=allWorkouts.filter(w=>w.user_id===u.id&&w.workout_date===currentDay);const dsk=allSkips.find(s=>s.user_id===u.id&&s.skip_date===currentDay&&!s.erased);let status='';if(dw.length>1)status='Workout + 2x';else if(dw.length===1)status='Workout';else if(dsk)status=dsk.is_free?'Free skip':'Paid skip ($20)';else status='\u2014';h+=`<div class="cal-legend-item">${avH(u,16)} <span style="color:${uC(u.id)}">${esc(u.display_name)}</span> <span style="font-size:.7rem;color:var(--text2)">${status}</span></div>`});h+='</div>'}
+  h+='</div>';if(calFilter==='all'){h+='<div class="cal-legend">';allUsers.forEach(u=>{const dw=allWorkouts.filter(w=>w.user_id===u.id&&w.workout_date===currentDay);const dsk=allSkips.find(s=>s.user_id===u.id&&s.skip_date===currentDay&&!s.erased);const desk=allSkips.find(s=>s.user_id===u.id&&s.skip_date===currentDay&&s.erased);let status='';let statusColor='var(--text2)';if(dw.length>1)status='Workout + 2x';else if(dw.length===1)status='Workout';else if(dsk)status=dsk.is_free?'Free skip':'Paid skip ($20)';else if(desk){status='\u2b50 Covered by 2x';statusColor='#ffd700'}else status='\u2014';h+=`<div class="cal-legend-item">${avH(u,16)} <span style="color:${uC(u.id)}">${esc(u.display_name)}</span> <span style="font-size:.7rem;color:${statusColor}">${status}</span></div>`});h+='</div>'}
   else{// Individual user stats
     const uid=calFilter;const u=allUsers.find(x=>x.id===uid);if(u){
       const ws=allWorkouts.filter(w=>w.user_id===uid);const tad=ws.filter(w=>w.is_two_a_day).length;
